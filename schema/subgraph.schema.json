@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dcg-protocol.dev/schema/subgraph.schema.json",
+  "title": "DCG Subgraph File",
+  "description": "A standalone graph datastore linked from graph.json's graphs index. Contains only graph data — no project metadata or graph index (RFC DCG-002 §7.6.2).",
+  "type": "object",
+  "required": ["schema_version", "entities", "relations", "layers"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "DCG schema version (e.g., '1.0')."
+    },
+    "entities": {
+      "$ref": "graph.schema.json#/$defs/entities_map"
+    },
+    "relations": {
+      "$ref": "graph.schema.json#/$defs/relations_map"
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "graph.schema.json#/$defs/layer"
+      }
+    }
+  },
+  "additionalProperties": false
+}

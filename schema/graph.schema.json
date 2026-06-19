@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dcg-protocol.dev/schema/graph.schema.json",
+  "title": "DCG Domain Project — graph.json",
+  "description": "Entry point and primary datastore for a DCG domain project. Contains project metadata, a graph index linking subgraph files, and the main graph data inline (RFC DCG-002 §7.6).",
+  "type": "object",
+  "required": ["dcg_project", "graphs", "schema_version", "entities", "relations", "layers"],
+  "properties": {
+    "dcg_project": {
+      "$ref": "#/$defs/dcg_project"
+    },
+    "graphs": {
+      "type": "array",
+      "description": "Index of all graph files in this project. The first entry SHOULD be the self-referential default.",
+      "items": {
+        "$ref": "#/$defs/graph_index_entry"
+      },
+      "minItems": 1
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "DCG schema version (e.g., '1.0'). Per-graph, not per-entity (§4.4)."
+    },
+    "entities": {
+      "$ref": "#/$defs/entities_map"
+    },
+    "relations": {
+      "$ref": "#/$defs/relations_map"
+    },
+    "layers": {
+      "type": "array",
+      "description": "Ordered list of committed layers (§7.2).",
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "dcg_project": {
+      "type": "object",
+      "description": "Project metadata — identity, version, description (§7.6.1).",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project identifier."
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version string.",
+          "pattern": "^\\d+\\.\\d+\\.\\d+"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable project description."
+        }
+      },
+      "additionalProperties": true
+    },
+    "graph_index_entry": {
+      "type": "object",
+      "description": "A pointer to a graph file within the project.",
+      "required": ["id", "file"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Graph identifier (e.g., 'default', 'appsec')."
+        },
+        "file": {
+          "type": "string",
+          "description": "Path relative to project root (e.g., 'graph.json', 'graphs/appsec.json')."
+        }
+      },
+      "additionalProperties": false
+    },
+    "entities_map": {
+      "type": "object",
+      "description": "Entities keyed by content-addressed UID (dcg:sha256:<32hex>) or meta-entity ID (dcg:meta:<name>).",
+      "patternProperties": {
+        "^dcg:(sha256:[0-9a-f]{32}|meta:[A-Za-z][A-Za-z0-9_]*)$": {
+          "$ref": "#/$defs/entity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "entity": {
+      "description": "A DCG entity in compact format (§4.1). Either a full entity or a retracted entity.",
+      "oneOf": [
+        { "$ref": "#/$defs/entity_full" },
+        { "$ref": "#/$defs/entity_retracted" }
+      ]
+    },
+    "entity_full": {
+      "type": "object",
+      "description": "A full entity with label, description, and flat claims (§4.1).",
+      "required": ["id", "label", "description", "claims"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Content-addressed UID or meta-entity ID.",
+          "pattern": "^dcg:(sha256:[0-9a-f]{32}|meta:[A-Za-z][A-Za-z0-9_]*)$"
+        },
+        "label": {
+          "type": "string",
+          "description": "English display name — shorthand for Wikibase labels structure (§4.2)."
+        },
+        "description": {
+          "type": "string",
+          "description": "English description — shorthand for Wikibase descriptions structure (§4.2)."
+        },
+        "aliases": {
+          "type": "array",
+          "description": "Alternative names — shorthand for Wikibase aliases structure (§4.2).",
+          "items": { "type": "string" }
+        },
+        "labels": {
+          "$ref": "#/$defs/language_map",
+          "description": "Full Wikibase multilingual labels (§4.2). If present, takes precedence over 'label'."
+        },
+        "descriptions": {
+          "$ref": "#/$defs/language_map",
+          "description": "Full Wikibase multilingual descriptions (§4.2). If present, takes precedence over 'description'."
+        },
+        "claims": {
+          "type": "array",
+          "description": "Flat list of claims (§5.1).",
+          "items": {
+            "$ref": "#/$defs/claim"
+          }
+        }
+      },
+      "patternProperties": {
+        "^dcg:": {
+          "description": "Extension fields MUST be prefixed with 'dcg:' (§4.1 req 3)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "entity_retracted": {
+      "type": "object",
+      "description": "A retracted entity — suppresses the entity from all older layers during merge (§5.5).",
+      "required": ["id", "retracted"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^dcg:(sha256:[0-9a-f]{32}|meta:[A-Za-z][A-Za-z0-9_]*)$"
+        },
+        "retracted": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "language_map": {
+      "type": "object",
+      "description": "Language-keyed label/description map (Wikibase format).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["language", "value"],
+        "properties": {
+          "language": { "type": "string" },
+          "value": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "claim": {
+      "type": "object",
+      "description": "A flat claim with a property and exactly one typed value key (§5.1). Core types: entity, string, quantity. Unknown types preserved on round-trip (§5.3).",
+      "required": ["property"],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "English-language property key (§5.2)."
+        },
+        "entity": {
+          "type": "string",
+          "description": "UID reference to another entity (core type, §5.3)."
+        },
+        "string": {
+          "type": "string",
+          "description": "Plain text value (core type, §5.3)."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Numeric value (core type, §5.3)."
+        },
+        "qualifiers": {
+          "type": "array",
+          "description": "Qualifier claims providing additional context (§5.4).",
+          "items": {
+            "$ref": "#/$defs/qualifier"
+          }
+        },
+        "retracted": {
+          "type": "boolean",
+          "const": true,
+          "description": "Marks this claim as retracted in the current layer (§5.5)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "qualifier": {
+      "type": "object",
+      "description": "A qualifier — same format as a claim but without qualifiers or retracted (§5.4).",
+      "required": ["property"],
+      "properties": {
+        "property": {
+          "type": "string",
+          "description": "English-language property key."
+        },
+        "entity": {
+          "type": "string"
+        },
+        "string": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": true
+    },
+    "relations_map": {
+      "type": "object",
+      "description": "Relations keyed by relation UID. Relations are directional entity-to-entity links stored separately from claims for query convenience.",
+      "patternProperties": {
+        "^dcg:rel:sha256:[0-9a-f]{32}$": {
+          "$ref": "#/$defs/relation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "description": "A typed directed relationship between two entities.",
+      "required": ["dcg:type", "uid", "source", "target", "property"],
+      "properties": {
+        "dcg:type": {
+          "type": "string",
+          "const": "relation"
+        },
+        "uid": {
+          "type": "string",
+          "pattern": "^dcg:rel:sha256:[0-9a-f]{32}$"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source entity UID."
+        },
+        "target": {
+          "type": "string",
+          "description": "Target entity UID."
+        },
+        "property": {
+          "type": "string",
+          "description": "Relationship type (e.g., 'calls', 'part of')."
+        },
+        "qualifiers": {
+          "type": "array",
+          "description": "Optional qualifier claims.",
+          "items": {
+            "$ref": "#/$defs/qualifier"
+          }
+        },
+        "retracted": {
+          "type": "boolean",
+          "const": true,
+          "description": "Marks this relation as retracted in the current layer."
+        }
+      },
+      "additionalProperties": false
+    },
+    "layer": {
+      "type": "object",
+      "description": "A committed layer — atomic snapshot of changes (§7.2).",
+      "required": ["layer_id", "source", "pass_type", "schema_version", "timestamp"],
+      "properties": {
+        "layer_id": {
+          "type": "string",
+          "description": "Content-addressed layer identifier."
+        },
+        "parent_id": {
+          "type": ["string", "null"],
+          "description": "ID of the preceding layer, or null for the first layer."
+        },
+        "source": {
+          "type": "string",
+          "description": "What produced this layer (e.g., 'code-parser', 'dcg-mcp')."
+        },
+        "pass_type": {
+          "type": "string",
+          "enum": ["full", "incremental", "patch"],
+          "description": "'full' for complete snapshot, 'incremental' for additive update, 'patch' for targeted correction (§7.2.1)."
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO 8601 timestamp."
+        },
+        "entity_uids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "UIDs of entities added, modified, or retracted in this layer."
+        },
+        "relation_uids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "UIDs of relations added or modified in this layer."
+        },
+        "entity_count": {
+          "type": "integer",
+          "description": "Total entities added/modified."
+        },
+        "relation_count": {
+          "type": "integer",
+          "description": "Total relations added/modified."
+        },
+        "duration_ms": {
+          "type": "integer",
+          "description": "Extraction duration in milliseconds, if available."
+        },
+        "compacted_through": {
+          "type": ["string", "null"],
+          "description": "If this is a compaction layer, the layer_id it compacted through (§7.5)."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
