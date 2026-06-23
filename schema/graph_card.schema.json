@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dcg.dev/schema/graph_card.schema.json",
+  "title": "DCG Graph Card",
+  "description": "Metadata manifest for a DCG knowledge unit. Contains project info, ontology declarations, and a graphs index. MUST NOT contain entity or relation data.",
+  "type": "object",
+  "required": ["dcg_project", "graphs"],
+  "additionalProperties": false,
+  "properties": {
+    "dcg_project": { "$ref": "#/$defs/dcg_project" },
+    "ontology": { "$ref": "#/$defs/ontology" },
+    "graphs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/graph_index_entry" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "dcg_project": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "graph_index_entry": {
+      "type": "object",
+      "required": ["id", "file"],
+      "properties": {
+        "id": { "type": "string" },
+        "file": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ontology": {
+      "type": "object",
+      "properties": {
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "datatype": { "type": "string", "enum": ["string", "quantity"] },
+              "description": { "type": "string" },
+              "wikidata": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["alias", "canonical"],
+            "properties": {
+              "alias": { "type": "string" },
+              "canonical": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,48 +1,51 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://dcg-protocol.dev/schema/stack.schema.json",
-  "title": "DCG Stack Manifest — dcg-stack.yml",
-  "description": "Composition manifest that layers multiple DCG domain projects into a unified queryable stack. Typically stored as YAML; this schema validates the parsed structure.",
+  "$id": "https://dcg.dev/schema/stack.schema.json",
+  "title": "DCG Stack Manifest",
+  "description": "Composition manifest for multi-layer DCG knowledge stacks.",
   "type": "object",
   "required": ["stack", "layers"],
+  "additionalProperties": false,
   "properties": {
-    "stack": {
-      "type": "string",
-      "description": "Human-readable stack name."
-    },
+    "stack": { "type": "string" },
+    "strict": { "type": "boolean", "default": false },
     "layers": {
       "type": "array",
-      "description": "Ordered list of composition layers. Declaration order determines query priority (first-declared wins).",
-      "items": {
-        "$ref": "#/$defs/layer_entry"
-      },
+      "items": { "$ref": "#/$defs/layer_entry" },
       "minItems": 1
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge_rule" }
     }
   },
-  "additionalProperties": false,
   "$defs": {
     "layer_entry": {
       "type": "object",
-      "description": "A composition layer pointing to a DCG domain project.",
       "required": ["name", "source"],
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique layer identifier within this stack."
-        },
-        "source": {
-          "type": "string",
-          "description": "Path to the DCG domain project directory (resolved relative to the manifest file)."
-        },
+        "name": { "type": "string" },
+        "source": { "type": "string" },
         "extends": {
-          "type": "string",
-          "description": "Name of another layer in this stack for cross-layer entity resolution. Must reference an existing layer. The extends graph must be acyclic."
+          "type": "array",
+          "items": { "type": "string" }
         },
         "pass_type": {
           "type": "string",
           "enum": ["full", "incremental"],
-          "default": "full",
-          "description": "Default pass type hint for this layer."
+          "default": "full"
+        }
+      },
+      "additionalProperties": false
+    },
+    "edge_rule": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "patternProperties": {
+        "^[a-z_][a-z0-9_ ]*$": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*\\.[a-z_][a-z0-9_]* -> [A-Za-z][A-Za-z0-9_]*\\.[a-z_][a-z0-9_]*$"
         }
       },
       "additionalProperties": false

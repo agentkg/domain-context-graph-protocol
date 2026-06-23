@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dcg.dev/schema/graph_data.schema.json",
+  "title": "DCG Graph Data",
+  "description": "Entity and relation data for a DCG knowledge unit graph.",
+  "type": "object",
+  "required": ["entities", "relations"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string" },
+    "entities": { "$ref": "#/$defs/entities_map" },
+    "relations": { "$ref": "#/$defs/relations_map" },
+    "layers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/layer" }
+    }
+  },
+  "$defs": {
+    "entities_map": {
+      "type": "object",
+      "patternProperties": {
+        "^dcg:(sha256:[0-9a-f]{32}|meta:[A-Za-z][A-Za-z0-9_]*)$": {
+          "$ref": "#/$defs/entity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "entity": {
+      "oneOf": [
+        { "$ref": "#/$defs/entity_full" },
+        { "$ref": "#/$defs/entity_retracted" }
+      ]
+    },
+    "entity_full": {
+      "type": "object",
+      "required": ["id", "label", "description", "claims"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } }
+      },
+      "additionalProperties": false
+    },
+    "entity_retracted": {
+      "type": "object",
+      "required": ["id", "retracted"],
+      "properties": {
+        "id": { "type": "string" },
+        "retracted": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "claim": {
+      "type": "object",
+      "required": ["property"],
+      "properties": {
+        "property": { "type": "string" },
+        "entity": { "type": "string" },
+        "string": { "type": "string" },
+        "quantity": { "type": "number" },
+        "qualifiers": { "type": "array" },
+        "retracted": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "relations_map": {
+      "type": "object",
+      "patternProperties": {
+        "^dcg:rel:sha256:[0-9a-f]{32}$": { "$ref": "#/$defs/relation" }
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "required": ["dcg:type", "uid", "source", "target", "property"],
+      "properties": {
+        "dcg:type": { "const": "relation" },
+        "uid": { "type": "string" },
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "property": { "type": "string" },
+        "qualifiers": { "type": "array" },
+        "retracted": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "layer": {
+      "type": "object",
+      "required": ["layer_id", "source", "pass_type", "schema_version", "timestamp"],
+      "properties": {
+        "layer_id": { "type": "string" },
+        "parent_id": { "type": ["string", "null"] },
+        "source": { "type": "string" },
+        "pass_type": { "type": "string", "enum": ["full", "incremental", "patch"] },
+        "schema_version": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "entity_uids": { "type": "array", "items": { "type": "string" } },
+        "relation_uids": { "type": "array", "items": { "type": "string" } },
+        "entity_count": { "type": "integer" },
+        "relation_count": { "type": "integer" },
+        "duration_ms": { "type": "integer" },
+        "compacted_through": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}
