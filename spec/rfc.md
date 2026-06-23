@@ -178,7 +178,9 @@ the compact format maps bidirectionally to the Wikibase Action API JSON format
     field at the top level of `graphs/default.json` and each additional graph
     data file.
 
-16. The initial schema version is `"1.0"`.
+16. The current schema version is `"2.0"`. Version `"2.0"` reflects the
+    breaking changes introduced in DCG-002 (graph_card.json + graphs/ layout,
+    multi-parent DAG extends, edge rules).
 
 17. Implementations MUST reject graphs whose major version exceeds the
     implementation's supported major version.
