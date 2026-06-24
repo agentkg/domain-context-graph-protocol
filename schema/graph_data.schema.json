@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dcg.dev/schema/graph_data.schema.json",
   "title": "DCG Graph Data",
-  "description": "Entity and relation data for a DCG knowledge unit graph.",
+  "description": "Entity and relation data for a DCG domain knowledge unit graph.",
   "type": "object",
   "required": ["entities", "relations"],
   "additionalProperties": false,
@@ -33,13 +33,13 @@
     },
     "entity_full": {
       "type": "object",
-      "required": ["id", "label", "description", "claims"],
+      "required": ["id", "label", "description", "attributes"],
       "properties": {
         "id": { "type": "string" },
         "label": { "type": "string" },
         "description": { "type": "string" },
         "aliases": { "type": "array", "items": { "type": "string" } },
-        "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } }
+        "attributes": { "type": "array", "items": { "$ref": "#/$defs/attribute" } }
       },
       "additionalProperties": false
     },
@@ -52,12 +52,12 @@
       },
       "additionalProperties": false
     },
-    "claim": {
+    "attribute": {
       "type": "object",
       "required": ["property"],
       "properties": {
         "property": { "type": "string" },
-        "entity": { "type": "string" },
+        "ref": { "type": "string" },
         "string": { "type": "string" },
         "quantity": { "type": "number" },
         "qualifiers": { "type": "array" },

@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dcg.dev/schema/graph_card.schema.json",
   "title": "DCG Graph Card",
-  "description": "Metadata manifest for a DCG knowledge unit. Contains project info, ontology declarations, and a graphs index. MUST NOT contain entity or relation data.",
+  "description": "Metadata manifest for a DCG domain knowledge unit. Contains project info, ontology declarations, and a graphs index. MUST NOT contain entity or relation data.",
   "type": "object",
-  "required": ["dcg_project", "graphs"],
+  "required": ["dcg_project"],
   "additionalProperties": false,
   "properties": {
     "dcg_project": { "$ref": "#/$defs/dcg_project" },
@@ -57,7 +57,7 @@
             "required": ["name"],
             "properties": {
               "name": { "type": "string" },
-              "datatype": { "type": "string", "enum": ["string", "quantity"] },
+              "datatype": { "type": "string", "enum": ["string", "quantity", "ref"] },
               "description": { "type": "string" },
               "wikidata": { "type": "string" }
             },

@@ -10,11 +10,11 @@
 
 There is no lightweight, embeddable, in-process graph store that:
 
-1. Speaks a **Wikidata-compatible entity format** (labels, descriptions, aliases, typed claims)
+1. Speaks a **Wikidata-compatible entity format** (labels, descriptions, aliases, typed attributes)
 2. Supports **layered evolution** — each data source produces a layer that stacks on previous state
 3. Is **git-backed** — content-addressed, diffable, serializable to a dedicated git repo
 4. Works **in-memory first** — no server, no external DB required for pipeline use
-5. Is **domain-agnostic** — the same protocol handles code graphs, city knowledge graphs, or any entity-relationship data
+5. Is **domain-agnostic** — the same protocol handles code graphs, city knowledge graphs, or any entity-relation data
 
 ### What exists today
 
@@ -84,7 +84,7 @@ KnowledgeContextGraph entities follow the Wikibase JSON structure with targeted 
   "labels": {"en": {"language": "en", "value": "list_pets"}},
   "descriptions": {"en": {"language": "en", "value": "FastAPI endpoint handler for listing pets"}},
   "aliases": {"en": [{"language": "en", "value": "listPets"}]},
-  "claims": {
+  "attributes": {
     "instance of": [{
       "type": "statement",
       "mainsnak": {
@@ -164,12 +164,12 @@ Same identity keys always produce the same UID. This enables deduplication acros
 
 ## 4. Relation Model
 
-Relations are expressed as claims on the source entity, following the Wikibase statement structure. The target is referenced by entity ID in the `datavalue`.
+Relations are expressed as attributes on the source entity, following the Wikibase statement structure. The target is referenced by entity ID in the `datavalue`.
 
 ```json
 {
   "id": "dcg:sha256:a3f7c2d1e4b89012f4c5d6e7",
-  "claims": {
+  "attributes": {
     "calls": [{
       "type": "statement",
       "mainsnak": {
@@ -203,7 +203,7 @@ For consumers that prefer explicit edge objects (graph DBs, visualization tools)
 }
 ```
 
-The standalone format is a denormalized view of the claim — both representations are equivalent and convertible.
+The standalone format is a denormalized view of the attribute — both representations are equivalent and convertible.
 
 ### 4.2 Property Registry
 
@@ -285,10 +285,10 @@ In a software system, the interlinked domains might include:
   POST /api/pay endpoint         GET /api/stock endpoint      Grafana dashboard
 ```
 
-Every domain is an instance of `dcg:meta:Domain`. Domains participate in the graph like any other entity — they have labels, descriptions, and claims expressing their relationships to other domains and entities:
+Every domain is an instance of `dcg:meta:Domain`. Domains participate in the graph like any other entity — they have labels, descriptions, and attributes expressing their relations to other domains and entities:
 
 ```python
-META_ENTITIES = {
+TYPE_REGISTRY = {
     # The Domain meta-type itself
     "dcg:meta:Domain":      {"labels": {"en": "Domain"},
                              "description": "A real-world area of concern"},
@@ -310,8 +310,8 @@ store.add_entity(wb.item(
     uid=payments_uid,
     label="Payments",
     description="Payment processing, billing, and financial transactions",
-    claims=[
-        wb.claim("instance of", wb.entity_value("dcg:meta:Domain")),
+    attributes=[
+        wb.attribute("instance of", wb.ref_value("dcg:meta:Domain")),
     ],
 ))
 
@@ -320,18 +320,18 @@ store.add_entity(wb.item(
     uid=inventory_uid,
     label="Inventory",
     description="Stock management, warehousing, and supply chain",
-    claims=[
-        wb.claim("instance of", wb.entity_value("dcg:meta:Domain")),
+    attributes=[
+        wb.attribute("instance of", wb.ref_value("dcg:meta:Domain")),
     ],
 ))
 
-# Domain-to-domain relationship: Payments depends on Inventory
+# Domain-to-domain relation: Payments depends on Inventory
 store.add_relation(payments_uid, inventory_uid, "depends on")
 ```
 
 ### 5.2 Entity Membership in Domains
 
-Entities belong to domains via **"part of"** claims. An entity can belong to **multiple domains** — an API endpoint serving both Payments and Inventory has two "part of" claims:
+Entities belong to domains via **"part of"** attributes. An entity can belong to **multiple domains** — an API endpoint serving both Payments and Inventory has two "part of" attributes:
 
 ```python
 # A function that belongs to the Payments domain
@@ -340,10 +340,10 @@ store.add_entity(wb.item(
     uid=fn_uid,
     label="process_payment",
     description="Processes a credit card payment",
-    claims=[
-        wb.claim("instance of", wb.entity_value("dcg:meta:Function")),
-        wb.claim("part of", wb.entity_value(payments_uid)),
-        wb.claim("file path", wb.string_value("src/billing.py")),
+    attributes=[
+        wb.attribute("instance of", wb.ref_value("dcg:meta:Function")),
+        wb.attribute("part of", wb.ref_value(payments_uid)),
+        wb.attribute("file path", wb.string_value("src/billing.py")),
     ],
 ))
 
@@ -353,10 +353,10 @@ store.add_entity(wb.item(
     uid=endpoint_uid,
     label="POST /api/checkout",
     description="Checkout endpoint — charges payment and updates stock",
-    claims=[
-        wb.claim("instance of", wb.entity_value("dcg:meta:Endpoint")),
-        wb.claim("part of", wb.entity_value(payments_uid)),
-        wb.claim("part of", wb.entity_value(inventory_uid)),
+    attributes=[
+        wb.attribute("instance of", wb.ref_value("dcg:meta:Endpoint")),
+        wb.attribute("part of", wb.ref_value(payments_uid)),
+        wb.attribute("part of", wb.ref_value(inventory_uid)),
     ],
 ))
 ```
@@ -372,15 +372,15 @@ POST /api/checkout → instance of → Endpoint    (structural type)
                    → part of     → Inventory   (domain membership)
 
 Payments          → instance of → Domain       (it's a domain)
-                  → depends on  → Inventory    (domain relationship)
+                  → depends on  → Inventory    (domain relation)
 ```
 
-### 5.3 Meta-Entity Types (Structural)
+### 5.3 Type Types (Structural)
 
-Meta-entity types are **structural** — they describe what an entity IS, independent of which domain it belongs to. A Function is a Function whether it lives in Payments or Inventory.
+Entity type types are **structural** — they describe what an entity IS, independent of which domain it belongs to. A Function is a Function whether it lives in Payments or Inventory.
 
 ```python
-META_ENTITIES = {
+TYPE_REGISTRY = {
     # Meta-types
     "dcg:meta:Domain":         {"labels": {"en": "Domain"},
                                 "description": "A real-world area of concern"},
@@ -419,11 +419,11 @@ META_ENTITIES = {
 Registering new structural types:
 
 ```python
-from dcg.core import register_meta_entity
+from dcg.core import register_global_type
 
-register_meta_entity("dcg:meta:Building",
+register_global_type("dcg:meta:Building",
                      label="Building", description="A physical structure")
-register_meta_entity("dcg:meta:Sensor",
+register_global_type("dcg:meta:Sensor",
                      label="Sensor", description="An IoT sensor device")
 ```
 
@@ -529,7 +529,7 @@ store.add_entity({
     "labels": {"en": {"language": "en", "value": "list_pets"}},
     "descriptions": {"en": {"language": "en", "value": "Lists all pets"}},
     "aliases": {},
-    "claims": {
+    "attributes": {
         "instance of": [{"type": "statement", "mainsnak": {
             "snaktype": "value", "property": "instance of",
             "datavalue": {"type": "wikibase-entityid",
@@ -569,7 +569,7 @@ Optional layer. Extends `GraphStore` to serialize layers as git commits in a ded
 .dcg/                              # dedicated graph repo
 ├── .git/
 ├── meta.json                      # store metadata
-├── ontology/                      # meta-entities (committed once)
+├── ontology/                      # entity types (committed once)
 │   ├── Function.json
 │   ├── Class.json
 │   └── ...
@@ -662,11 +662,11 @@ entity = wb.item(
     uid=entity_uid(name="list_pets", path="src/main.py", line_number=42),
     label="list_pets",
     description="FastAPI endpoint handler for listing pets",
-    claims=[
-        wb.claim("instance of", wb.entity_value("dcg:meta:Function")),
-        wb.claim("file path", wb.string_value("src/main.py")),
-        wb.claim("line number", wb.quantity_value(42)),
-        wb.claim("language", wb.string_value("python")),
+    attributes=[
+        wb.attribute("instance of", wb.ref_value("dcg:meta:Function")),
+        wb.attribute("file path", wb.string_value("src/main.py")),
+        wb.attribute("line number", wb.quantity_value(42)),
+        wb.attribute("language", wb.string_value("python")),
     ],
 )
 
@@ -687,10 +687,10 @@ KnowledgeContextGraph is domain-agnostic. Consumers plug in via:
 ### 9.1 Ontology Extension
 
 ```python
-from dcg.core import register_meta_entity, register_property, builders as wb
+from dcg.core import register_global_type, register_property, builders as wb
 
 # Register structural types (domain-independent)
-register_meta_entity("dcg:meta:Building",
+register_global_type("dcg:meta:Building",
                      label="Building", description="A physical structure")
 register_property("address", datatype="string",
                   description="Street address")
@@ -701,8 +701,8 @@ register_property("population", datatype="quantity",
 geo_uid = entity_uid(domain="geospatial")
 store.add_entity(wb.item(
     uid=geo_uid, label="Geospatial",
-    description="Physical locations and spatial relationships",
-    claims=[wb.claim("instance of", wb.entity_value("dcg:meta:Domain"))],
+    description="Physical locations and spatial relations",
+    attributes=[wb.attribute("instance of", wb.ref_value("dcg:meta:Domain"))],
 ))
 ```
 
@@ -730,11 +730,11 @@ class CodeTranslator:
                               line_number=fn["line_number"]),
                 label=fn["name"],
                 description="",
-                claims=[
-                    wb.claim("instance of", wb.entity_value("dcg:meta:Function")),
-                    wb.claim("file path", wb.string_value(file_data["path"])),
-                    wb.claim("line number", wb.quantity_value(fn["line_number"])),
-                    wb.claim("language", wb.string_value(file_data.get("lang", ""))),
+                attributes=[
+                    wb.attribute("instance of", wb.ref_value("dcg:meta:Function")),
+                    wb.attribute("file path", wb.string_value(file_data["path"])),
+                    wb.attribute("line number", wb.quantity_value(fn["line_number"])),
+                    wb.attribute("language", wb.string_value(file_data.get("lang", ""))),
                 ],
             ))
             count += 1
@@ -776,7 +776,7 @@ class KuzuMaterializer:
 
 - `qwikidata` can parse KnowledgeContextGraph entity JSON (same top-level structure)
 - Labels, descriptions, aliases follow exact Wikibase format
-- Claims use the same snak structure (mainsnak, qualifiers, references, rank)
+- Attributes use the same snak structure as Wikibase claims (mainsnak, qualifiers, references, rank)
 
 ### 10.2 What differs
 
@@ -822,12 +822,12 @@ kcg/
 ├── core/                           # INDEPENDENT — zero external domain deps
 │   ├── __init__.py                 # public API exports
 │   ├── model.py                    # Entity, Relation, Layer dataclasses
-│   ├── ontology.py                 # META_ENTITIES (incl. Domain), PROPERTY_REGISTRY, register_*
+│   ├── ontology.py                 # TYPE_REGISTRY (incl. Domain), PROPERTY_REGISTRY, register_*
 │   ├── store.py                    # GraphStore (in-memory)
 │   ├── merge.py                    # merge_layers, compact
 │   ├── git_store.py                # GitGraphStore (dulwich)
 │   ├── federation.py               # GraphRegistry, BoundaryResolver protocol
-│   ├── builders.py                 # item(), claim(), relation() helpers
+│   ├── builders.py                 # entity(), attribute(), relation() helpers
 │   └── uid.py                      # entity_uid(), relation_uid()
 └── mcp/                            # optional — requires mcp>=1.27
     ├── __init__.py
@@ -870,7 +870,7 @@ Real-world systems are composed of interlinked domains. Each domain is a graph t
 
 **Each graph contains:**
 - A **domain entity** (instance of `dcg:meta:Domain`) — the anchor
-- **Entities** that belong to the domain via "part of" claims
+- **Entities** that belong to the domain via "part of" attributes
 - **Intra-domain relations** between those entities
 - **Cross-domain references** to entities in peer graphs
 
@@ -913,7 +913,7 @@ Each graph's `.dcg/` repo root contains a `manifest.json` declaring identity, th
 ```
 
 **Export rules (type-level):**
-- Only entities whose "instance of" claim targets an exported meta-entity type are visible to peer graphs
+- Only entities whose "instance of" attribute targets an exported entity type type are visible to peer graphs
 - Internal entities (helpers, intermediate parse artifacts) are opaque to other graphs
 - The export list is the graph's **public API surface** — changing it is a contract change
 - Entities with multi-domain membership are exported from each graph they belong to
@@ -925,7 +925,7 @@ When an entity in the Payments graph references an entity in the Inventory graph
 ```json
 {
   "id": "dcg:sha256:a3f7c2d1e4b89012f4c5d6e7",
-  "claims": {
+  "attributes": {
     "triggers": [{
       "type": "statement",
       "mainsnak": {
@@ -1006,11 +1006,11 @@ class LocalGraphRegistry:
 
 ### 13.5 Boundary Resolver Pattern
 
-Cross-graph relationships are discovered by **BoundaryResolvers** — components that examine entities in two connected graphs and create edges between them.
+Cross-graph relations are discovered by **BoundaryResolvers** — components that examine entities in two connected graphs and create edges between them.
 
 ```python
 class BoundaryResolver(Protocol):
-    """Discovers and creates cross-graph relationships."""
+    """Discovers and creates cross-graph relations."""
 
     source_domain: str  # domain this resolver reads FROM
     target_domain: str  # domain this resolver connects TO
@@ -1113,14 +1113,14 @@ payments_uid = entity_uid(domain="payments")
 payments_store.add_entity(wb.item(
     uid=payments_uid, label="Payments",
     description="Payment processing and billing",
-    claims=[wb.claim("instance of", wb.entity_value("dcg:meta:Domain"))],
+    attributes=[wb.attribute("instance of", wb.ref_value("dcg:meta:Domain"))],
 ))
 
 inventory_uid = entity_uid(domain="inventory")
 inventory_store.add_entity(wb.item(
     uid=inventory_uid, label="Inventory",
     description="Stock management and supply chain",
-    claims=[wb.claim("instance of", wb.entity_value("dcg:meta:Domain"))],
+    attributes=[wb.attribute("instance of", wb.ref_value("dcg:meta:Domain"))],
 ))
 
 # 3. Register in a shared registry
@@ -1145,7 +1145,7 @@ payments_store.commit_layer(source="boundary-resolver")
 
 # 6. Cross-graph queries work through the registry
 fn = payments_store.get_entity("dcg:sha256:abc123d4e5f6a7b8c9d0e1f2")
-stock_ref = get_claim_target(fn, "triggers")
+stock_ref = get_attribute_target(fn, "triggers")
 # stock_ref = {"id": "dcg:def456", "graph": "dcg:graph:inventory"}
 
 # Resolve through registry — returns None if inventory_store not available
@@ -1204,9 +1204,9 @@ store.to_json(Path("code-graph.json"))
 urban_store = GitGraphStore(".dcg/urban.dcg/")
 transit_store = GitGraphStore(".dcg/transit.dcg/")
 
-register_meta_entity("dcg:meta:Building", label="Building")
-register_meta_entity("dcg:meta:Road", label="Road")
-register_meta_entity("dcg:meta:BusStop", label="Bus Stop")
+register_global_type("dcg:meta:Building", label="Building")
+register_global_type("dcg:meta:Road", label="Road")
+register_global_type("dcg:meta:BusStop", label="Bus Stop")
 register_property("address", datatype="string")
 register_property("nearest to", datatype="wikibase-entityid")
 
@@ -1215,14 +1215,14 @@ urban_uid = entity_uid(domain="urban-planning")
 urban_store.add_entity(wb.item(
     uid=urban_uid, label="Urban Planning",
     description="Zoning, buildings, and land use",
-    claims=[wb.claim("instance of", wb.entity_value("dcg:meta:Domain"))],
+    attributes=[wb.attribute("instance of", wb.ref_value("dcg:meta:Domain"))],
 ))
 
 transit_uid = entity_uid(domain="transit")
 transit_store.add_entity(wb.item(
     uid=transit_uid, label="Public Transit",
     description="Bus routes, stops, and schedules",
-    claims=[wb.claim("instance of", wb.entity_value("dcg:meta:Domain"))],
+    attributes=[wb.attribute("instance of", wb.ref_value("dcg:meta:Domain"))],
 ))
 
 # Layer 1: OSM building data → Urban Planning domain
@@ -1230,10 +1230,10 @@ for building in osm_buildings:
     urban_store.add_entity(wb.item(
         uid=entity_uid(source="osm", osm_id=building["id"]),
         label=building["name"],
-        claims=[
-            wb.claim("instance of", wb.entity_value("dcg:meta:Building")),
-            wb.claim("part of", wb.entity_value(urban_uid)),
-            wb.claim("address", wb.string_value(building["address"])),
+        attributes=[
+            wb.attribute("instance of", wb.ref_value("dcg:meta:Building")),
+            wb.attribute("part of", wb.ref_value(urban_uid)),
+            wb.attribute("address", wb.string_value(building["address"])),
         ],
     ))
 urban_store.commit_layer(source="openstreetmap", pass_type="full")
@@ -1243,9 +1243,9 @@ for stop in transit_stops:
     transit_store.add_entity(wb.item(
         uid=entity_uid(source="transit", stop_id=stop["id"]),
         label=stop["name"],
-        claims=[
-            wb.claim("instance of", wb.entity_value("dcg:meta:BusStop")),
-            wb.claim("part of", wb.entity_value(transit_uid)),
+        attributes=[
+            wb.attribute("instance of", wb.ref_value("dcg:meta:BusStop")),
+            wb.attribute("part of", wb.ref_value(transit_uid)),
         ],
     ))
 transit_store.commit_layer(source="transit-authority", pass_type="full")

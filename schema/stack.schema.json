@@ -14,9 +14,9 @@
       "items": { "$ref": "#/$defs/layer_entry" },
       "minItems": 1
     },
-    "edges": {
+    "joins": {
       "type": "array",
-      "items": { "$ref": "#/$defs/edge_rule" }
+      "items": { "$ref": "#/$defs/join_rule" }
     }
   },
   "$defs": {
@@ -29,23 +29,18 @@
         "extends": {
           "type": "array",
           "items": { "type": "string" }
-        },
-        "pass_type": {
-          "type": "string",
-          "enum": ["full", "incremental"],
-          "default": "full"
         }
       },
       "additionalProperties": false
     },
-    "edge_rule": {
+    "join_rule": {
       "type": "object",
       "minProperties": 1,
       "maxProperties": 1,
       "patternProperties": {
-        "^[a-z_][a-z0-9_ ]*$": {
+        "^[a-z][a-z0-9_]*( [a-z][a-z0-9_]*)*$": {
           "type": "string",
-          "pattern": "^[A-Za-z][A-Za-z0-9_]*\\.[a-z_][a-z0-9_]* -> [A-Za-z][A-Za-z0-9_]*\\.[a-z_][a-z0-9_]*$"
+          "pattern": "^([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]* -> ([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]*$"
         }
       },
       "additionalProperties": false
