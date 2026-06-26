@@ -78,7 +78,7 @@ DCG fills this gap.
 
 ## 3. Entity Model Rationale
 
-> **Implements:** R-001 through R-011 [DCG-001] — entity structure, content-addressed IDs (R-001 through R-011)
+> **Implements:** R-001 through R-011 [DCG-001] — entity structure, content-addressed IDs
 
 ### 3.1 Wikibase JSON Compatibility
 
@@ -822,7 +822,7 @@ register_property("population", datatype="quantity",
 
 ### 10.4 Stack Ontology Merge
 
-> **Implements:** R-009 through R-012 [DCG-001-COMP] — topo-order merge, warn-not-error, built-in exempt
+> **Implements:** R-010, R-012 [DCG-001-COMP] — ontology merge semantics only; DAG validation and load order in §11.2
 
 **Guidance:**
 
@@ -862,7 +862,7 @@ for v in violations:
 
 ### 10.6 Ontology Pack Loading
 
-> **Implements:** R-006 through R-008 [DCG-001-PACK] — packs, recommended built-ins, load order
+> **Implements:** R-006 through R-008, R-013 through R-015 [DCG-001-PACK] — pack loading, recommended built-ins, name validation, per-layer stack loading
 
 **Guidance:**
 
