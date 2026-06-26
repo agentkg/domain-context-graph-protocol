@@ -26,7 +26,7 @@ DCG graphs are:
 | Document | ID | Description |
 |----------|-----|-------------|
 | [Reference Architecture](spec/01-reference-architecture.md) | DCG-001-IMP | Reference architecture and implementation guidance |
-| [Population Workflow](spec/02-spec-population-workflow.md) | DCG-001-PW | How to populate and maintain domain graphs |
+| [Ingest Workflow](spec/02-ingest-workflow.md) | DCG-001-PW | How to populate and maintain domain graphs |
 
 ## Schemas
 

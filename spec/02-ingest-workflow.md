@@ -1,4 +1,4 @@
-# DCG Population Workflow Specification
+# DCG Ingest Workflow
 
 **Spec ID:** DCG-001-PW
 **Status:** Draft
