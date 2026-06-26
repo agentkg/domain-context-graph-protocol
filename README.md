@@ -47,7 +47,7 @@ my-domain/
     default.json           # entity and relation data
 ```
 
-See the [RFC](spec/rfc.md) for the full entity model, property system, and composition rules.
+See [DCG-001 Core Protocol](rfc/01-rfc.md) for the full entity model, property system, and composition rules.
 
 ## Reference Implementation
 

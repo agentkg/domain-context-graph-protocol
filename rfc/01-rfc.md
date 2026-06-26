@@ -4,7 +4,7 @@
 **Status:** Draft
 **Date:** 2026-06-26
 **Extensions:** [DCG-001-COMP](02-rfc-composition.md) | [DCG-001-PACK](03-rfc-packs.md)
-**Schemas:** [graph_card](../schema/graph_card.schema.json) | [graph_data](../schema/graph_data.schema.json) | [stack](../schema/stack.schema.json)
+**Schemas:** [graph_card](../schema/graph_card.schema.json) | [graph_data](../schema/graph_data.schema.json)
 
 ---
 
@@ -616,7 +616,7 @@ R-074. `purge_retracted()` MUST permanently remove all entities and relations
 R-075. After purge, `load()` MUST NOT resurrect previously retracted data.
 
 R-076. `purge_retracted()` MUST operate on a single domain project at a time.
-    Stack-level tooling that invokes purge MUST target each composition layer
+    Stack-level tooling that invokes purge MUST target each layer
     explicitly and independently. An implementation MUST NOT implicitly purge
     layers other than the one targeted.
 

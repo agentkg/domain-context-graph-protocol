@@ -220,8 +220,8 @@ configuration.
 
 ## Appendix A: Requirement Summary
 
-| Req | Section | Level | Summary |
-|-----|---------|-------|---------|
+| R-NNN | Section | Level | Requirement |
+|-------|---------|-------|-------------|
 | R-001 | 5. Pack Concept | MUST | A Pack is a named, reusable bundle identified by a string name |
 | R-002 | 5. Pack Concept | MUST | Pack system MUST be extensible by pack type; first type is `ontology` |
 | R-003 | 6. Pack Declaration Format | MUST | Packs declared in `graph_card.json` via `packs` key (object keyed by pack type) |
