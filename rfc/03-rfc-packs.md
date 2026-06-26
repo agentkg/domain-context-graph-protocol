@@ -123,13 +123,15 @@ R-006. Packs MUST be loaded before the per-project custom ontology, so that
     custom declarations can reference or override pack-provided content. Load
     order within a domain project:
 
-    1. `ontology_builtin` (auto-loaded; see R-047 [DCG-001])
+    1. `ontology_builtin` (auto-loaded; see R-047 through R-048 [DCG-001])
     2. Declared packs (in array order)
     3. Custom `ontology` section (as defined in R-049 through R-050 [DCG-001])
 
 R-007. Each domain project's pack-derived content MUST be fully self-contained
     between its packs and its custom declarations. A domain project MUST NOT
-    depend on another domain project's pack declarations.
+    depend on another domain project's pack declarations. Pack-loaded
+    declarations follow the same persistence rules as custom ontology
+    declarations (see R-051 [DCG-001]).
 
 R-008. When a pack name in the `packs` array cannot be resolved, implementations
     MUST raise an error listing the unknown pack name and available packs.
