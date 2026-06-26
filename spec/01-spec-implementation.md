@@ -23,7 +23,7 @@
 - [9. In-Memory Store](#9-in-memory-store)
 - [10. Ontology Runtime](#10-ontology-runtime)
 - [11. Query Behavior](#11-query-behavior)
-- [12. Domain Project Format](#12-domain-project-format)
+- [12. Git Persistence](#12-git-persistence)
 - [13. Builder Helpers](#13-builder-helpers)
 - [14. Schema Versioning](#14-schema-versioning)
 - [15. Package Structure](#15-package-structure)
@@ -77,7 +77,7 @@ DCG fills this gap.
 
 ## 3. Entity Model Rationale
 
-> **Implements:** R-001 through R-016 [DCG-001] — entity structure, content-addressed IDs, schema version
+> **Implements:** R-001 through R-011 [DCG-001] — entity structure, content-addressed IDs, schema version
 
 ### 3.1 Wikibase JSON Compatibility
 
@@ -484,7 +484,7 @@ Implementations may use `qwikidata` or equivalent to import Wikidata entities fr
 
 ## 7. Integration Patterns
 
-> **Implements:** design rationale for consumer integration points
+> **Implements:** informative — no direct RFC requirements; design rationale for consumer integration points
 
 DCG is domain-agnostic. Consumers plug in via three patterns:
 
@@ -918,9 +918,11 @@ callers = store.get_relations(target=fn_uid, property="calls")
 
 ---
 
-## 12. Domain Project Format
+## 12. Git Persistence
 
 > **Implements:** R-053 through R-063 [DCG-001] — graph_card.json, graphs/ layout, intra-layer constraint
+
+The reference implementation provides `GitGraphStore`, a git-backed implementation of `GraphStoreProtocol` that persists each domain project as a git repository.
 
 ### 12.1 Directory Layout
 
@@ -1114,11 +1116,11 @@ dcg/
 - [DCG-001](../rfc/01-rfc.md) — Domain Context Graph Core Protocol
 - [DCG-001-COMP](../rfc/02-rfc-composition.md) — DCG Composition Extension (Stack Manifests)
 - [DCG-001-PACK](../rfc/03-rfc-packs.md) — DCG Pack Extension (Ontology Packs)
-- [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt) — Key words for use in RFCs
-- [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) — Uppercase vs Lowercase in RFC 2119 Key Words
 
 ### Informative
 
+- [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt) — Key words for use in RFCs
+- [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) — Uppercase vs Lowercase in RFC 2119 Key Words
 - [Wikibase JSON (Action API)](https://doc.wikimedia.org/Wikibase/master/php/docs_topics_json.html)
 - [Wikibase Data Model](https://www.mediawiki.org/wiki/Wikibase/DataModel/JSON)
 - [IPFS Content Identifiers (CIDs)](https://docs.ipfs.tech/concepts/content-addressing/)
