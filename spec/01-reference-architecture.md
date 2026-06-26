@@ -1,4 +1,4 @@
-# DCG Implementation & Reference Architecture
+# DCG Reference Architecture
 
 **Spec ID:** DCG-001-IMP
 **Status:** Draft
@@ -9,7 +9,7 @@
 
 ## Table of Contents
 
-**Part I: Reference Architecture**
+**Part I: Data Model & Design Rationale**
 - [1. Problem Statement](#1-problem-statement)
 - [2. Design Principles](#2-design-principles)
 - [3. Entity Model Rationale](#3-entity-model-rationale)
@@ -19,20 +19,21 @@
 - [7. Integration Patterns](#7-integration-patterns)
 - [8. Examples](#8-examples)
 
-**Part II: Implementation Guidance**
+**Part II: Runtime Implementation Guidance**
 - [9. In-Memory Store](#9-in-memory-store)
 - [10. Ontology Runtime](#10-ontology-runtime)
-- [11. Query Behavior](#11-query-behavior)
-- [12. Git Persistence](#12-git-persistence)
-- [13. Builder Helpers](#13-builder-helpers)
-- [14. Schema Versioning](#14-schema-versioning)
-- [15. Package Structure](#15-package-structure)
-- [16. Security Considerations](#16-security-considerations)
-- [17. References](#17-references)
+- [11. Stack Loader](#11-stack-loader)
+- [12. Query Behavior](#12-query-behavior)
+- [13. Git Persistence](#13-git-persistence)
+- [14. Builder Helpers](#14-builder-helpers)
+- [15. Schema Versioning](#15-schema-versioning)
+- [16. Package Structure](#16-package-structure)
+- [17. Security Considerations](#17-security-considerations)
+- [18. References](#18-references)
 
 ---
 
-# Part I: Reference Architecture
+# Part I: Data Model & Design Rationale
 
 ---
 
@@ -77,7 +78,7 @@ DCG fills this gap.
 
 ## 3. Entity Model Rationale
 
-> **Implements:** R-001 through R-011 [DCG-001] — entity structure, content-addressed IDs, schema version
+> **Implements:** R-001 through R-011 [DCG-001] — entity structure, content-addressed IDs (R-001 through R-011)
 
 ### 3.1 Wikibase JSON Compatibility
 
@@ -269,7 +270,7 @@ Consumers extend the registry at runtime (see §10.2).
 
 ## 5. Domains, Types, and Ontology
 
-> **Implements:** R-037 through R-052 [DCG-001] — domains, entity types, two-axis classification, domain hierarchy, ontology declaration
+> **Implements:** R-037 through R-046 [DCG-001] — domains as entities, entity types, two-axis classification, domain hierarchy (rationale; ontology mechanics R-047–R-052 in §10)
 
 ### 5.1 Domains as First-Class Entities
 
@@ -672,7 +673,7 @@ project2.load()
 
 ---
 
-# Part II: Implementation Guidance
+# Part II: Runtime Implementation Guidance
 
 ---
 
@@ -734,6 +735,9 @@ class GraphStore:
 4. `query()` supports filtering by `instance_of` and `part_of` independently and in combination (R-069). Excludes retracted entities (R-072).
 5. `remove(uid)` marks the entity or relation as retracted (`"retracted": true`) — it does not physically delete it (R-070).
 6. `purge_retracted()` permanently removes all retracted entities and relations, except redirect source tombstones (R-074, R-080).
+7. Attribute-level retraction is distinct from entity-level retraction (R-032–R-035 [DCG-001]). To retract a single attribute, add `"retracted": true` to that attribute object in the attributes array — the entry remains in place as a soft-deleted marker. The identity tuple for a retracted attribute is `(property, typed_key, value)` so it can be correlated on re-load. `to_dict()` MUST include retracted attribute entries in the output (they must survive round-trips until explicitly purged). After `purge_retracted()`, no `"retracted": true` flags MUST remain on attributes — redirect tombstones are the only retraction-related entries exempt from purge (R-036 [DCG-001]).
+8. After `purge_retracted()` is called, a subsequent `load()` from the persisted graph files MUST NOT resurrect retracted entities, relations, or attributes. The persistence layer (see §13) is responsible for ensuring retracted records are omitted from written files before any reload occurs (R-075 [DCG-001]).
+9. `purge_retracted()` MUST operate on a single domain project's store only. There is no implicit cross-layer purge. When operating on a stack, tooling MUST iterate each composition layer's store and call `purge_retracted()` on each independently (R-076 [DCG-001]).
 
 ### 9.4 Usage Example
 
@@ -770,7 +774,7 @@ store.to_json(Path("graph.json"))
 
 ## 10. Ontology Runtime
 
-> **Implements:** R-041 through R-052 [DCG-001]; R-009 through R-012 [DCG-001-COMP]; R-001 through R-015 [DCG-001-PACK]
+> **Implements:** R-041 through R-052 [DCG-001] — see sub-sections for per-range claims; DCG-001-COMP and DCG-001-PACK coverage is in §11 (Stack Loader)
 
 ### 10.1 Built-in Ontology (`ontology_builtin`)
 
@@ -811,7 +815,7 @@ register_property("population", datatype="quantity",
 
 **Guidance:**
 
-1. When loading a domain project, the implementation MUST first load the `packs` declared in `graph_card.json` (see §10.6), then load the `ontology` key custom declarations, merging into the project's `PackStore`.
+1. When loading a domain project, the implementation MUST first load the `packs` declared in `graph_card.json` (see §10.6), then load the `ontology` key custom declarations, merging into the project's ontology registry (the combined set of types, properties, and aliases from `ontology_builtin` + packs + custom declarations).
 2. Load order within a domain project is: `ontology_builtin` → declared packs (array order) → custom `ontology` section.
 3. When saving (`to_dict()`), only custom declarations (not `ontology_builtin` contents, not pack contents) MUST be written to the `ontology` key in `graph_card.json`. The `packs` key MUST be persisted so packs are re-loaded on deserialization.
 4. On deserialization (`load()`), the implementation MUST first load packs from the `packs` key, then load the `ontology` key, restoring the full ontology state.
@@ -845,7 +849,7 @@ The merge order (later overrides earlier):
 3. `validate_ontology()` checks MUST include:
    - Entity `"instance of"` references an unregistered entity type
    - Entity attributes reference unregistered property names
-   - Non-Domain, non-Type entities have fewer than 2 entity-linking attributes (`ref`-typed)
+   - Non-Domain, non-Type entities with fewer than 2 entity-linking attributes (i.e., ref-typed attributes such as `"instance of"` and `"part of"`)
 4. When strict mode is enabled at the stack level (`strict: true` in `dcg-stack.yml`), implementations SHOULD run `validate_ontology()` at load time and log violations as warnings (not errors).
 5. When strict mode is disabled (default), validation is not automatically run but MAY be invoked explicitly.
 
@@ -869,6 +873,10 @@ for v in violations:
    - `"dcg-development"` — development tooling vocabulary
 3. Packs MUST be loaded before the per-project custom ontology so that custom declarations can reference or override pack-provided types and properties.
 4. Each domain project's ontology MUST be fully self-contained between its packs and its custom ontology section — it MUST NOT depend on another domain project's pack declarations.
+5. When a pack name in the `packs` array cannot be resolved, the implementation MUST raise an error that includes the unknown pack name and lists the available pack names (R-008 [DCG-001-PACK]).
+6. Pack names MUST match the regex `[a-z][a-z0-9-]*` and are case-sensitive. Implementations MUST validate pack names at declaration time and reject names that do not conform (R-013 [DCG-001-PACK]).
+7. When a stack is loaded, each layer's packs are loaded independently as part of that layer's own ontology setup, before the stack-level ontology merge described in §10.4. Each layer brings its own pack-derived vocabulary into the merge (R-014 [DCG-001-PACK]).
+8. When the same pack is declared by multiple layers in a stack, the pack content is loaded once per layer. The resulting per-layer pack content enters the stack-level ontology merge using the same merge semantics as custom declarations — later layers override earlier layers on conflict, with a warning (R-015 [DCG-001-PACK]).
 
 ```json
 {
@@ -884,7 +892,175 @@ for v in violations:
 
 ---
 
-## 11. Query Behavior
+## 11. Stack Loader
+
+> **Implements:** R-001 through R-036 [DCG-001-COMP] — stack manifest parsing, DAG validation, join rules, join materialization, entity resolution, cross-layer queries, composition guarantees
+
+The Stack Loader is the runtime component responsible for loading a `dcg-stack.yml`, validating the composition DAG, loading each layer's domain project, materializing join rules, and exposing a unified cross-layer query interface. It is the primary entry point for any multi-layer DCG composition.
+
+### 11.1 Stack Manifest Parsing
+
+> **Implements:** R-001 through R-008 [DCG-001-COMP] — manifest format, required fields, layer entries, uniqueness, acyclicity
+
+**Guidance:**
+
+1. Parse the manifest from a YAML file (conventionally `dcg-stack.yml`). The YAML loader MUST treat the file as strict UTF-8 and reject non-YAML content (R-001 [DCG-001-COMP]).
+2. After parsing, validate that the top-level object contains the required fields `stack` (string) and `layers` (array). A manifest missing either MUST be rejected with a descriptive error naming the missing field (R-002 [DCG-001-COMP]).
+3. The manifest MUST NOT contain a top-level `ontology` key. Ontology declarations belong in each layer's `graph_card.json`. If an `ontology` key is found at the manifest level, reject the manifest with an error (R-003 [DCG-001-COMP]).
+4. Optional manifest-level fields are `strict` (boolean, default `false`) and `joins` (array of join rule objects). Any other unrecognized top-level key SHOULD produce a warning but MUST NOT be treated as a fatal error (R-003 [DCG-001-COMP]).
+5. For each entry in the `layers` array, validate that `name` (string) and `source` (string path) are present. Layer entries missing either field MUST be rejected (R-004 [DCG-001-COMP]).
+6. Each layer entry MAY contain an `extends` field — an array of layer name strings identifying parent layers for entity resolution (R-005 [DCG-001-COMP]).
+7. Layer names MUST be unique within the manifest. After parsing all layer entries, check for duplicates and reject the manifest if any two layers share a `name` (R-006 [DCG-001-COMP]).
+8. Every name that appears in any layer's `extends` list MUST match a layer name declared in the same manifest. Unresolvable extends references MUST be rejected at parse time, before any project data is loaded (R-007, R-008 [DCG-001-COMP]).
+
+**Example `dcg-stack.yml`:**
+
+```yaml
+stack: appsec-ctx-graph
+strict: true
+
+layers:
+  - name: security
+    source: ./dcg-security-domain
+
+  - name: product
+    source: ./dcg-product-domain
+    extends: [security]
+
+  - name: compliance
+    source: ./dcg-compliance
+    extends: [security]
+
+  - name: infrastructure
+    source: ./dcg-infrastructure
+    extends: [product, compliance]
+
+joins:
+  - mitigates: SecurityCapability.targets_cwe -> WeaknessType.cwe_id
+  - triggers:  AttackType.exploits_cwe -> WeaknessType.cwe_id
+```
+
+### 11.2 DAG Validation and Load Order
+
+> **Implements:** R-009 through R-012 [DCG-001-COMP] — reference validation, cycle detection, load order, join rule validation
+
+**Guidance:**
+
+1. Before loading any project data, perform a topological sort on the extends DAG. Use the `layers` array order as the canonical declaration order and as the tiebreaker for BFS (R-009, R-010 [DCG-001-COMP]).
+2. If a cycle is detected during topological sort, reject the stack with an error that names every layer involved in the cycle. Do not partially load layers before the cycle is confirmed (R-010 [DCG-001-COMP]).
+3. Load each layer's `DomainProject` (graph data + ontology) in topological order — parents before children. Each layer's packs are loaded as part of that layer's setup (see §10.6 point 7), then ontologies are merged incrementally so that child layers can reference types and properties declared in parent layers (R-011 [DCG-001-COMP]).
+4. After all layers are loaded and ontologies are merged, validate every type and property name referenced in `joins` rules against the merged ontology. Any join rule referencing an undeclared type or property MUST cause the stack load to fail with an error that identifies the specific undeclared name (R-012 [DCG-001-COMP]).
+5. The `strict` flag at the manifest level propagates to per-layer validation: when `strict: true`, run `validate_ontology()` for each layer after loading and log all violations. Violations in strict mode SHOULD be warnings, not fatal errors, to allow partially populated graphs to be inspected.
+
+### 11.3 Join Rule Parser
+
+> **Implements:** R-013 through R-017 [DCG-001-COMP] — join rule format, expression grammar, dot constraint, full grammar enforcement, layer prefix validation
+
+**Guidance:**
+
+1. Each entry in the `joins` array MUST be a single-key YAML mapping. The key is the relation property name (the relation that will be materialized); the value is the join expression string. Entries with more than one key MUST be rejected (R-013 [DCG-001-COMP]).
+2. Parse the join expression string using the grammar defined in R-016 [DCG-001-COMP]:
+   ```
+   join_expr  := type_prop SP "->" SP type_prop
+   type_prop  := [LayerName "."] TypeName "." prop_name
+   LayerName  := [a-z][a-z0-9_-]*
+   TypeName   := [A-Z][A-Za-z0-9_-]*
+   prop_name  := [a-z][a-z0-9_]*
+   ```
+   Disambiguation between an optional `LayerName` prefix and the `TypeName` uses the case rule: layer names begin with a lowercase letter, type names begin with an uppercase letter. Implement this as a regex or a simple two-pass tokenizer that splits on `.` and classifies tokens by first character (R-014, R-015, R-016 [DCG-001-COMP]).
+3. The `.` character MUST NOT appear in entity type names, property names, or layer names. Validate all names after splitting and reject expressions where any split token contains a `.` (R-015 [DCG-001-COMP]).
+4. Join expressions that do not match the grammar MUST be rejected at parse time with a human-readable error message that includes the expression string and the point of failure (R-016 [DCG-001-COMP]).
+5. When a layer prefix is present in a join expression, the named layer MUST exist in the stack's `layers` array. Reject the stack if a join rule references an undeclared layer (R-017 [DCG-001-COMP]).
+6. Build a structured `JoinRule` object for each parsed join expression. The `JoinRule` holds: `property` (string), `from_layer` (string or `None`), `from_type` (string), `from_prop` (string), `to_layer` (string or `None`), `to_type` (string), `to_prop` (string).
+7. Note on dual naming: property names in join expressions (`prop_name` grammar — lowercase with underscores, e.g., `cwe_id`) are the short identifiers used in join rules. These differ from the English property keys used in entity wire format (e.g., `"cwe id"`). Implementations SHOULD document the mapping between join-expression identifiers and wire-format property keys so that authors of join rules know which identifier to use for a given property.
+
+### 11.4 Join Materialization Algorithm
+
+> **Implements:** R-018 through R-022 [DCG-001-COMP] — 4-step evaluation, relation JSON fields, read-only, separate storage, multi-value
+
+**Guidance:**
+
+1. After all layers are loaded and join rules are parsed and validated, execute join materialization. For each `JoinRule`, apply the following 4-step algorithm (R-018 [DCG-001-COMP]):
+   - **Step 1 — Collect source candidates:** Query for all entities whose `"instance of"` attribute matches `from_type`. If `from_layer` is set, restrict to that layer's store; otherwise search all layers' stores.
+   - **Step 2 — Collect target candidates:** Query for all entities whose `"instance of"` attribute matches `to_type`. If `to_layer` is set, restrict to that layer's store; otherwise search all layers' stores.
+   - **Step 3 — Build index:** Index target candidates by the value of their `to_prop` property. For multi-value properties, index once per value.
+   - **Step 4 — Emit relations:** For each source entity, retrieve the value(s) of its `from_prop` property and look up each value in the target index. For each match, emit one cross-layer relation object.
+2. Each materialized cross-layer relation MUST be a JSON object with the following fields (R-019 [DCG-001-COMP]):
+   - `"dcg:type"`: `"relation"`
+   - `"uid"`: deterministic UID computed from source ID, target ID, and property using the standard relation UID scheme (see §3.3)
+   - `"source"`: UID of the source entity
+   - `"target"`: UID of the target entity
+   - `"property"`: the relation property name from the join rule (e.g., `"mitigates"`)
+   - `"dcg:cross_layer"`: `true`
+   - `"dcg:matched_on"`: the property value that caused the match (e.g., `"CWE-20"`)
+3. Cross-layer relations are read-only computed artifacts — they MUST NOT be written to any layer's graph data files. They are recomputed on every stack load (R-020 [DCG-001-COMP]).
+4. Store cross-layer relations in a separate runtime collection from each layer's intra-layer relations, so that callers can distinguish them by the presence of `"dcg:cross_layer": true` (R-021 [DCG-001-COMP]).
+5. A source entity with multiple values for `from_prop` (multi-value attributes) MUST produce one materialized cross-layer relation per matching `(from_prop_value, target)` pair (R-022 [DCG-001-COMP]).
+
+**Example — materialized relation:**
+
+```json
+{
+  "dcg:type": "relation",
+  "uid": "dcg:rel:sha256:c8d9e0f1a2b34567",
+  "source": "dcg:sha256:wafsanitizer...",
+  "target": "dcg:sha256:inputval...",
+  "property": "mitigates",
+  "dcg:cross_layer": true,
+  "dcg:matched_on": "CWE-20"
+}
+```
+
+### 11.5 Entity Resolution
+
+> **Implements:** R-023 through R-027 [DCG-001-COMP] — BFS algorithm, first-found wins, redirect following, None return, cycle tracking
+
+**Guidance:**
+
+1. Implement `resolve(layer_name, uid)` as a separate operation from per-layer `get_entity()`. Its purpose is to find an entity by UID across the extends DAG starting from the named layer (R-023 [DCG-001-COMP]).
+2. The algorithm is breadth-first search. Starting at the named layer, visit parent layers in the order declared in that layer's `extends` list. Use a queue initialized with `[layer_name]` (R-023 [DCG-001-COMP]).
+3. At each layer in the BFS traversal, call `get_entity(uid)` on that layer's store. If the entity is found, follow any redirects within that layer (as specified by R-077–R-081 [DCG-001]) and return the resolved entity (R-024, R-025 [DCG-001-COMP]).
+4. If the entity is not found in the current layer, enqueue that layer's parent layers (in `extends` declaration order) for the next BFS iteration, skipping any already-visited layers.
+5. If the BFS traversal completes without finding the entity, return `None` (R-026 [DCG-001-COMP]).
+6. Maintain a `visited` set of layer names throughout the traversal. Before visiting any layer, check the `visited` set and skip already-visited layers. This guarantees termination even if the DAG contains a runtime cycle (R-027 [DCG-001-COMP]).
+
+**Example BFS traversal** for `resolve("infrastructure", uid)` with `infrastructure` extending `[product, compliance]` and both `product` and `compliance` extending `[security]`:
+```
+Queue: [infrastructure]
+  infrastructure → not found → enqueue [product, compliance]
+Queue: [product, compliance]
+  product → not found → enqueue [security] (skip if already visited)
+  compliance → not found → security already enqueued
+Queue: [security]
+  security → FOUND → return entity
+```
+
+### 11.6 Cross-Layer Queries
+
+> **Implements:** R-028 through R-032 [DCG-001-COMP] — manifest order, UID deduplication, no attribute merge, layer filter, cross-layer relations in results
+
+**Guidance:**
+
+1. Cross-layer `query()` iterates layers in **manifest declaration order** (the order entries appear in the `layers` array), not extends DAG order (R-028 [DCG-001-COMP]).
+2. Collect results from each layer's store in declaration order. When the same entity UID appears in more than one layer, the entity from the **first-declared layer** is used and subsequent occurrences are discarded (R-029 [DCG-001-COMP]).
+3. Cross-layer queries MUST NOT merge attributes across layers. The entity dict returned for a given UID is the complete, unmodified dict from the winning layer's store. No attribute from a later layer is added to it (R-030 [DCG-001-COMP]).
+4. Implement an optional `layers` filter parameter: when provided as a list of layer names, restrict the query to only those layers (in their declaration order). Layers named in the filter but not in the manifest SHOULD raise an error (R-031 [DCG-001-COMP]).
+5. When returning relation results from a cross-layer query, include materialized cross-layer relations (those stored in the separate cross-layer collection from §11.4) alongside intra-layer relations. Callers can distinguish cross-layer relations by checking for `"dcg:cross_layer": true` in the relation object (R-032 [DCG-001-COMP]).
+
+### 11.7 Composition Guarantees
+
+> **Implements:** R-033 through R-036 [DCG-001-COMP] — independent layer loading, single-layer writes, save isolation, parent propagation
+
+**Guidance:**
+
+1. Each composition layer MUST be independently loadable at the file format level — a layer's `graph_card.json` and all graph data files in its `graphs/` directory MUST parse and validate without access to any other layer. Implementers SHOULD verify independent loadability during testing by loading each layer in isolation (R-033 [DCG-001-COMP]).
+2. Writes to a stack MUST target one composition layer at a time. The stack loader MUST expose the concept of an "active layer" and route all `add_entity()`, `add_relation()`, and `remove()` calls to that layer's store exclusively (R-034 [DCG-001-COMP]).
+3. `save()` on a stack MUST operate on the active composition layer only. No other layer's graph data files or `graph_card.json` MUST be modified by a `save()` call (R-035 [DCG-001-COMP]).
+4. Cross-layer join connections are matched on stable property values (e.g., `cwe_id`, `owasp_id`) rather than UIDs. When a parent layer is rebuilt (new entities, new UIDs), join rules re-materialize automatically to the new UIDs on the next stack load. No changes to the stack manifest or child layer data are needed (R-036 [DCG-001-COMP]).
+
+---
+
+## 12. Query Behavior
 
 > **Implements:** R-044 through R-046 [DCG-001] — two-axis query, instance_of, part_of
 
@@ -896,6 +1072,8 @@ for v in violations:
 4. Without filters, `query()` MUST return all non-retracted entities in the store.
 5. Property alias resolution MUST apply to filter arguments — querying `instance_of="wikidata_P31"` MUST resolve identically to `instance_of="instance of"` if the alias is registered.
 6. Hierarchy traversal for domain queries (querying a top-level domain and receiving all sub-domain entities) is RECOMMENDED but not required by the core protocol. Implementations SHOULD support `part_of_recursive` or equivalent.
+
+> **Cross-layer note:** The query behavior above applies to single-layer stores. When operating on a stack, cross-layer queries follow the additional semantics specified in §11.6: manifest declaration order iteration, UID deduplication (first-declared layer wins), no attribute merging across layers, optional layer filter, and inclusion of materialized cross-layer relations (R-028–R-032 [DCG-001-COMP]). See §11 Stack Loader for the full specification.
 
 **Example queries:**
 
@@ -918,13 +1096,13 @@ callers = store.get_relations(target=fn_uid, property="calls")
 
 ---
 
-## 12. Git Persistence
+## 13. Git Persistence
 
 > **Implements:** R-053 through R-063 [DCG-001] — graph_card.json, graphs/ layout, intra-layer constraint
 
-The reference implementation provides `GitGraphStore`, a git-backed implementation of `GraphStoreProtocol` that persists each domain project as a git repository.
+Implementations may provide a git-backed store (for example `GitGraphStore`) as an implementation of `GraphStoreProtocol` that persists each domain project as a git repository. The reference implementation ships this under `dcg/git/` (see §16).
 
-### 12.1 Directory Layout
+### 13.1 Directory Layout
 
 ```
 my-domain-project/
@@ -936,7 +1114,7 @@ my-domain-project/
 
 `graph_card.json` is the sole entry point for project metadata and the ontology. It MUST NOT contain entity or relation data.
 
-### 12.2 graph_card.json
+### 13.2 graph_card.json
 
 ```json
 {
@@ -962,7 +1140,7 @@ my-domain-project/
 }
 ```
 
-### 12.3 Graph Data Files
+### 13.3 Graph Data Files
 
 ```json
 {
@@ -984,7 +1162,7 @@ my-domain-project/
 }
 ```
 
-### 12.4 Intra-Layer Constraint
+### 13.4 Intra-Layer Constraint
 
 **Guidance:**
 
@@ -994,7 +1172,7 @@ my-domain-project/
 
 ---
 
-## 13. Builder Helpers
+## 14. Builder Helpers
 
 > **Implements:** R-001 through R-003 [DCG-001] — entity structure conformance via helpers
 
@@ -1038,7 +1216,7 @@ relation = wb.relation(
 
 ---
 
-## 14. Schema Versioning
+## 15. Schema Versioning
 
 > **Implements:** R-012 through R-016 [DCG-001] — schema_version field, version validation, migration strategy
 
@@ -1057,7 +1235,7 @@ relation = wb.relation(
 
 ---
 
-## 15. Package Structure
+## 16. Package Structure
 
 > **Implements:** module organization guidance (informative)
 
@@ -1072,7 +1250,12 @@ dcg/
 │   ├── purge.py                    # purge_retracted
 │   ├── project.py                  # DomainProject (graph_card.json + graphs/ persistence)
 │   ├── builders.py                 # entity(), attribute(), relation() helpers
-│   └── uid.py                      # entity_uid(), relation_uid()
+│   ├── uid.py                      # entity_uid(), relation_uid()
+│   ├── stack.py                    # StackLoader, DAG validator, join materializer, cross-layer query
+│   └── packs.py                    # PackRegistry, pack loader, built-in pack catalog
+├── git/                            # optional — git-backed store
+│   ├── __init__.py
+│   └── store.py                    # GitGraphStore (git-backed GraphStoreProtocol implementation)
 └── mcp/                            # optional — requires mcp>=1.27
     ├── __init__.py
     ├── server.py                   # FastMCP tools over stdio
@@ -1090,14 +1273,16 @@ dcg/
 - `GraphStoreProtocol` — protocol for type-checking
 - `entity_uid()`, `relation_uid()` — UID generation
 - `register_global_type()`, `register_property()` — ontology extension
+- `register_alias(alias, canonical)` — register a property alias (e.g., Wikidata P-IDs; see §6 and DCG-001 Appendix B.3)
 - `purge_retracted()` — retraction cleanup
+- `StackLoader` — stack manifest loading, DAG validation, join materialization, cross-layer query
 - `builders` module — `entity()`, `attribute()`, `relation()`, `ref_value()`, `string_value()`, `quantity_value()`
 
 ---
 
-## 16. Security Considerations
+## 17. Security Considerations
 
-> **Implements:** R-004 through R-011 [DCG-001] — identity key validation, size limits (informative guidance)
+> **Implements:** DCG-001 §11 (Security Considerations — informative; no formal R-NNN requirements)
 
 **Guidance:**
 
@@ -1109,7 +1294,7 @@ dcg/
 
 ---
 
-## 17. References
+## 18. References
 
 ### Normative
 
