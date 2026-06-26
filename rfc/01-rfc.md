@@ -624,7 +624,7 @@ R-076. `purge_retracted()` MUST operate on a single domain project at a time.
 
 When an entity's identity keys change (e.g., a function is renamed or a file is
 moved), its content-addressed UID changes. Redirects ensure that references to
-the old UID continue to resolve.
+the old UID continue to resolve. Redirect storage format is defined in R-052.
 
 R-077. Implementations MUST support entity redirects for identity key changes.
 
@@ -774,7 +774,7 @@ by the data model requirements above.
 | R-080 | 10.3 Entity Redirects | MUST | Redirect source entities MUST survive purge; "redirected to" preserved in tombstone |
 | R-081 | 10.3 Entity Redirects | MUST | Dangling redirects MUST NOT raise errors; get_entity() returns None for missing/retracted target |
 | R-082 | 10.4 I/O Operations | MUST | load() MUST load all graph data files in graphs index; absent graphs array = empty graph |
-| R-083 | 10.4 I/O Operations | MUST | save() MUST persist each graph data file and update graph_card.json graphs index |
+| R-083 | 10.4 I/O Operations | MUST | to_json(path) MUST persist each graph data file and update graph_card.json graphs index |
 
 ---
 
