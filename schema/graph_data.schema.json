@@ -9,11 +9,7 @@
   "properties": {
     "schema_version": { "type": "string" },
     "entities": { "$ref": "#/$defs/entities_map" },
-    "relations": { "$ref": "#/$defs/relations_map" },
-    "layers": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/layer" }
-    }
+    "relations": { "$ref": "#/$defs/relations_map" }
   },
   "$defs": {
     "entities_map": {
@@ -41,6 +37,7 @@
         "aliases": { "type": "array", "items": { "type": "string" } },
         "attributes": { "type": "array", "items": { "$ref": "#/$defs/attribute" } }
       },
+      "patternProperties": { "^dcg:": {} },
       "additionalProperties": false
     },
     "entity_retracted": {
@@ -48,8 +45,10 @@
       "required": ["id", "retracted"],
       "properties": {
         "id": { "type": "string" },
-        "retracted": { "const": true }
+        "retracted": { "const": true },
+        "attributes": { "type": "array", "items": { "$ref": "#/$defs/attribute" } }
       },
+      "patternProperties": { "^dcg:": {} },
       "additionalProperties": false
     },
     "attribute": {
@@ -83,25 +82,6 @@
         "property": { "type": "string" },
         "qualifiers": { "type": "array" },
         "retracted": { "type": "boolean" }
-      },
-      "additionalProperties": false
-    },
-    "layer": {
-      "type": "object",
-      "required": ["layer_id", "source", "pass_type", "schema_version", "timestamp"],
-      "properties": {
-        "layer_id": { "type": "string" },
-        "parent_id": { "type": ["string", "null"] },
-        "source": { "type": "string" },
-        "pass_type": { "type": "string", "enum": ["full", "incremental", "patch"] },
-        "schema_version": { "type": "string" },
-        "timestamp": { "type": "string" },
-        "entity_uids": { "type": "array", "items": { "type": "string" } },
-        "relation_uids": { "type": "array", "items": { "type": "string" } },
-        "entity_count": { "type": "integer" },
-        "relation_count": { "type": "integer" },
-        "duration_ms": { "type": "integer" },
-        "compacted_through": { "type": ["string", "null"] }
       },
       "additionalProperties": false
     }

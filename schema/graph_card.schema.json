@@ -8,6 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "dcg_project": { "$ref": "#/$defs/dcg_project" },
+    "packs": { "$ref": "#/$defs/packs" },
     "ontology": { "$ref": "#/$defs/ontology" },
     "graphs": {
       "type": "array",
@@ -35,6 +36,16 @@
       },
       "additionalProperties": false
     },
+    "packs": {
+      "type": "object",
+      "properties": {
+        "ontology": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
     "ontology": {
       "type": "object",
       "properties": {
@@ -58,8 +69,7 @@
             "properties": {
               "name": { "type": "string" },
               "datatype": { "type": "string", "enum": ["string", "quantity", "ref"] },
-              "description": { "type": "string" },
-              "wikidata": { "type": "string" }
+              "description": { "type": "string" }
             },
             "additionalProperties": false
           }
