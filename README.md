@@ -17,9 +17,10 @@ DCG graphs are:
 
 | Document | ID | Description |
 |----------|-----|-------------|
-| [Core Protocol](rfc/01-rfc.md) | DCG-001 | Wire format, data model, store protocol, on-disk format (83 requirements) |
-| [Composition Extension](rfc/02-rfc-composition.md) | DCG-001-COMP | Stack composition: manifests, DAG, joins, cross-layer queries (36 requirements) |
-| [Pack Extension](rfc/03-rfc-packs.md) | DCG-001-PACK | Pack system: declaration, loading, naming, built-in packs (15 requirements) |
+| [Core Protocol](rfc/01-rfc.md) | DCG-001 | Wire format, data model, store protocol, on-disk format (90 requirements) |
+| [Composition Extension](rfc/02-rfc-composition.md) | DCG-001-COMP | Stack composition: manifests, DAG, joins, cross-layer queries (37 requirements) |
+| [Pack Extension](rfc/03-rfc-packs.md) | DCG-001-PACK | Pack system: declaration, loading, naming, built-in packs (16 requirements) |
+| [Adapter Extension](rfc/04-rfc-store-adaptor.md) | DCG-001-ADAPT | Layer adapters, source anchors, enrichment overlay (26 requirements) |
 
 ### Specs (Implementation Guidance)
 

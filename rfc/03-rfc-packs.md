@@ -83,6 +83,7 @@ appear in all capitals, as shown here.
 - [References](#13-references)
   - [Normative](#normative)
 - [Appendix A: Requirement Summary](#appendix-a-requirement-summary)
+- [Appendix B: Change Log](#appendix-b-change-log)
 
 ---
 
@@ -133,21 +134,26 @@ R-007. Each domain project's pack-derived content MUST be fully self-contained
     declarations follow the same persistence rules as custom ontology
     declarations (see R-051 [DCG-001]).
 
-R-008. When a pack name in the `packs` array cannot be resolved, implementations
+R-008. Declarations loaded from packs MUST NOT be serialized when
+    `to_dict()` (R-051 [DCG-001](01-rfc.md)) writes the ontology. The
+    `packs` key MUST be persisted in `graph_card.json` so packs are
+    re-loaded on deserialization.
+
+R-009. When a pack name in the `packs` array cannot be resolved, implementations
     MUST raise an error listing the unknown pack name and available packs.
 
 ---
 
 ## 8. Ontology Pack Type
 
-R-009. An ontology pack MUST use the same format as the `graph_card.json`
+R-010. An ontology pack MUST use the same format as the `graph_card.json`
     `ontology` key, as defined in R-049 through R-050 [DCG-001]:
 
     - `types` (array of `{"name", "description"}`)
     - `properties` (array of `{"name", "datatype", "description"}`)
     - `aliases` (array of `{"alias", "canonical"}`)
 
-R-010. Ontology packs MUST be declared under the `"ontology"` key within the
+R-011. Ontology packs MUST be declared under the `"ontology"` key within the
     `packs` object:
 
     ```json
@@ -158,10 +164,10 @@ R-010. Ontology packs MUST be declared under the `"ontology"` key within the
 
 ## 9. Built-in Packs
 
-R-011. Pack names are implementation-defined. Implementations SHOULD ship
+R-012. Pack names are implementation-defined. Implementations SHOULD ship
     RECOMMENDED built-in packs for common domains.
 
-R-012. The following built-in packs are RECOMMENDED:
+R-013. The following built-in packs are RECOMMENDED:
 
     - `"code"` — source code analysis types and relations
     - `"security"` — security domain types and relations
@@ -173,7 +179,7 @@ R-012. The following built-in packs are RECOMMENDED:
 
 ## 10. Pack Naming and Resolution
 
-R-013. Pack names MUST be non-empty strings matching `[a-z][a-z0-9-]*`. Names
+R-014. Pack names MUST be non-empty strings matching `[a-z][a-z0-9-]*`. Names
     are case-sensitive. Implementations MUST resolve pack names to pack content
     using an implementation-defined lookup mechanism.
 
@@ -181,11 +187,11 @@ R-013. Pack names MUST be non-empty strings matching `[a-z][a-z0-9-]*`. Names
 
 ## 11. Stack Composition with Packs
 
-R-014. When a stack is loaded, each layer's packs MUST be loaded independently
+R-015. When a stack is loaded, each layer's packs MUST be loaded independently
     as part of that layer's ontology setup, before the stack-level ontology
     merge (see [DCG-001-COMP](02-rfc-composition.md)).
 
-R-015. When multiple layers declare the same pack, the pack content MUST be
+R-016. When multiple layers declare the same pack, the pack content MUST be
     loaded once per layer. Pack content from different layers follows the same
     merge semantics as custom ontology declarations (as defined in
     [DCG-001-COMP](02-rfc-composition.md)).
@@ -213,8 +219,7 @@ configuration.
 - [RFC 8174] Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC 2119 Key
   Words", BCP 14, RFC 8174, May 2017.
   <https://www.rfc-editor.org/rfc/rfc8174>
-- [DCG-001] Domain Context Graph Core Protocol.
-  <[01-rfc.md](01-rfc.md)>
+- [DCG-001](01-rfc.md) — Domain Context Graph Core Protocol
 
 ---
 
@@ -229,11 +234,22 @@ configuration.
 | R-005 | 6. Pack Declaration Format | OPTIONAL | `packs` key is optional; absent means only `ontology_builtin` is loaded |
 | R-006 | 7. Pack Loading Semantics | MUST | Packs loaded before custom ontology; order: builtin → packs → custom |
 | R-007 | 7. Pack Loading Semantics | MUST | Domain project pack content self-contained; no cross-project pack dependency |
-| R-008 | 7. Pack Loading Semantics | MUST | Unknown pack name MUST raise error listing the name and available packs |
-| R-009 | 8. Ontology Pack Type | MUST | Ontology pack uses same format as `graph_card.json` `ontology` key |
-| R-010 | 8. Ontology Pack Type | MUST | Ontology packs declared under `"ontology"` key in `packs` object |
-| R-011 | 9. Built-in Packs | SHOULD | Implementations SHOULD ship RECOMMENDED built-in packs |
-| R-012 | 9. Built-in Packs | RECOMMENDED | Built-in packs: `code`, `security`, `dcg-development` |
-| R-013 | 10. Pack Naming and Resolution | MUST | Pack names match `[a-z][a-z0-9-]*`; case-sensitive; impl-defined resolution |
-| R-014 | 11. Stack Composition with Packs | MUST | Each layer's packs loaded independently before stack-level ontology merge |
-| R-015 | 11. Stack Composition with Packs | MUST | Same pack declared in multiple layers loaded once per layer; same merge semantics |
+| R-008 | 7. Pack Loading Semantics | MUST | Pack declarations MUST NOT be serialized; `packs` key MUST be persisted |
+| R-009 | 7. Pack Loading Semantics | MUST | Unknown pack name MUST raise error listing the name and available packs |
+| R-010 | 8. Ontology Pack Type | MUST | Ontology pack uses same format as `graph_card.json` `ontology` key |
+| R-011 | 8. Ontology Pack Type | MUST | Ontology packs declared under `"ontology"` key in `packs` object |
+| R-012 | 9. Built-in Packs | SHOULD | Implementations SHOULD ship RECOMMENDED built-in packs |
+| R-013 | 9. Built-in Packs | RECOMMENDED | Built-in packs: `code`, `security`, `dcg-development` |
+| R-014 | 10. Pack Naming and Resolution | MUST | Pack names match `[a-z][a-z0-9-]*`; case-sensitive; impl-defined resolution |
+| R-015 | 11. Stack Composition with Packs | MUST | Each layer's packs loaded independently before stack-level ontology merge |
+| R-016 | 11. Stack Composition with Packs | MUST | Same pack declared in multiple layers loaded once per layer; same merge semantics |
+
+---
+
+## Appendix B: Change Log
+
+**2026-06-30 — Pack serialization exclusion + renumbering**
+
+- R-008 (new): Pack declarations MUST NOT be serialized by `to_dict()`;
+  `packs` key MUST be persisted (moved from DCG-001 R-051)
+- R-009–R-016: Renumbered from R-008–R-015 due to R-008 insertion

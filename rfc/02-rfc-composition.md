@@ -85,6 +85,7 @@ appear in all capitals, as shown here.
 - [References](#13-references)
   - [Normative](#normative)
 - [Appendix A: Requirement Summary](#appendix-a-requirement-summary)
+- [Appendix B: Change Log](#appendix-b-change-log)
 
 ---
 
@@ -107,9 +108,12 @@ R-002. The manifest MUST contain:
     - `layers` (array — ordered list of composition layer entries)
 
 R-003. The manifest MAY contain:
-    - `strict` (boolean — enable strict ontology validation as defined in
-      [DCG-001]; default `false`). When `strict: true`, each layer is
-      validated per strict mode validation as defined in [DCG-001].
+    - `strict` (boolean — enable strict validation; default `false`).
+      When `strict: true`, every non-Domain, non-Type entity in each
+      layer MUST have at least one `"instance of"` attribute AND at
+      least one `"part of"` attribute; absence of either MUST be a
+      load error. When `strict: false` (the default), these checks
+      are advisory only (SHOULD-level per R-045 [DCG-001]).
     - `joins` (array — cross-layer join rules; see §7)
 
     The manifest MUST NOT contain an `ontology` block. Ontology declarations
@@ -377,11 +381,13 @@ R-032. When relations are returned by a cross-layer query, implementations
 Each composition layer is independently loadable. A stack's join rules
 propagate parent-layer improvements automatically on the next load.
 
-R-033. Each composition layer MUST be independently loadable at the file
-     format level — a layer's `graph_card.json` and graph data files
-     MUST parse and validate without access to other layers. Strict
-     mode validation as defined in [DCG-001] MAY be skipped when loading
-     a layer standalone.
+R-033. Each native composition layer (those with a `graph_card.json`)
+     MUST be independently loadable at the file format level — the
+     layer's `graph_card.json` and graph data files MUST parse and
+     validate without access to other layers. Strict mode validation
+     (R-003) MAY be skipped when loading a layer standalone.
+     Adapter-backed layers (see [DCG-001-ADAPT](04-rfc-store-adaptor.md)) are
+     exempt from this standalone requirement.
 
 R-034. Writes MUST target a single composition layer at a time.
 
@@ -392,6 +398,11 @@ R-036. Improvements committed to a parent layer (e.g., new entities with the
      same `cwe_id` values) MUST be automatically visible to the stack on
      next load via re-materialization of join rules. No changes to the stack
      manifest or child layer data are required for propagation.
+
+R-037. Stack-level tooling that invokes `purge_retracted()`
+     (R-076 [DCG-001](01-rfc.md)) MUST target each layer explicitly and
+     independently. An implementation MUST NOT implicitly purge layers
+     other than the one targeted.
 
 Cross-layer connections are matched on shared property values (stable
 identifiers like `cwe_id`, `owasp_id`) rather than UIDs, so parent layers can be
@@ -450,7 +461,7 @@ expressions.
 |---|---|---|---|
 | R-001 | 5. Stack Manifest Format | MUST | Stack defined by YAML manifest file (`dcg-stack.yml`) |
 | R-002 | 5. Stack Manifest Format | MUST | Manifest contains `stack` and `layers` fields |
-| R-003 | 5. Stack Manifest Format | MAY/MUST NOT | Manifest MAY contain `strict` and `joins`; MUST NOT contain `ontology` block |
+| R-003 | 5. Stack Manifest Format | MAY/MUST | Manifest MAY contain `strict` (defines validation thresholds) and `joins`; MUST NOT contain `ontology` block |
 | R-004 | 5. Stack Manifest Format | MUST | Each layer entry contains `name` and `source` |
 | R-005 | 5. Stack Manifest Format | MAY | Each layer entry MAY contain `extends` array |
 | R-006 | 5. Stack Manifest Format | MUST | Layer names MUST be unique within a manifest |
@@ -480,7 +491,21 @@ expressions.
 | R-030 | 10. Cross-Layer Queries | MUST | Queries MUST NOT merge attributes across layers |
 | R-031 | 10. Cross-Layer Queries | SHOULD | Queries SHOULD accept optional layer filter |
 | R-032 | 10. Cross-Layer Queries | SHOULD | Query results SHOULD include cross-layer relations; callers SHOULD be able to filter |
-| R-033 | 11. Composition Guarantees | MUST | Each layer MUST be independently loadable |
+| R-033 | 11. Composition Guarantees | MUST | Each native layer MUST be independently loadable; adapter layers exempt |
 | R-034 | 11. Composition Guarantees | MUST | Writes MUST target a single composition layer |
 | R-035 | 11. Composition Guarantees | MUST | `save()` MUST operate on active layer only |
 | R-036 | 11. Composition Guarantees | MUST | Parent layer improvements MUST be automatically visible on next stack load |
+| R-037 | 11. Composition Guarantees | MUST | Stack-level purge MUST target each layer explicitly and independently |
+
+---
+
+## Appendix B: Change Log
+
+**2026-06-30 — Strict mode definition + stack purge + adapter exemption**
+
+- R-003: Defined strict mode validation thresholds explicitly (previously
+  circular reference with DCG-001)
+- R-033: Narrowed standalone loadability to native layers; adapter-backed
+  layers (DCG-001-ADAPT) are exempt
+- R-037: Added stack-level purge orchestration requirement (moved from
+  DCG-001 R-076)
