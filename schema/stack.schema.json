@@ -9,6 +9,13 @@
   "properties": {
     "stack": { "type": "string" },
     "strict": { "type": "boolean", "default": false },
+    "join_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.5,
+      "description": "Global default threshold for fuzzy (~>) join rules"
+    },
     "layers": {
       "type": "array",
       "items": { "$ref": "#/$defs/layer_entry" },
@@ -39,8 +46,31 @@
       "maxProperties": 1,
       "patternProperties": {
         "^[a-z][a-z0-9_]*( [a-z][a-z0-9_]*)*$": {
-          "type": "string",
-          "pattern": "^([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]* -> ([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]*$"
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]* [~-]> ([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]*$"
+            },
+            {
+              "type": "object",
+              "required": ["rule"],
+              "properties": {
+                "rule": {
+                  "type": "string",
+                  "pattern": "^([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]* [~-]> ([a-z][a-z0-9_-]*\\.)?[A-Z][A-Za-z0-9_-]*\\.[a-z][a-z0-9_]*$"
+                },
+                "threshold": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "matcher": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": false

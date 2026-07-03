@@ -59,6 +59,8 @@
         "ref": { "type": "string" },
         "string": { "type": "string" },
         "quantity": { "type": "number" },
+        "ref_label": { "type": "string" },
+        "ref_type": { "type": "string" },
         "qualifiers": { "type": "array" },
         "retracted": { "type": "boolean" }
       },
