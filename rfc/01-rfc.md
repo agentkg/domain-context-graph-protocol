@@ -3,7 +3,6 @@
 **RFC ID:** DCG-001
 **Status:** Draft
 **Date:** 2026-06-26
-**Extensions:** [DCG-001-COMP](02-rfc-composition.md) | [DCG-001-PACK](03-rfc-packs.md) | [DCG-001-ADAPT](04-rfc-store-adaptor.md)
 **Schemas:** [graph_card](../schema/graph_card.schema.json) | [graph_data](../schema/graph_data.schema.json)
 
 ---
@@ -24,8 +23,8 @@ The format is designed to be readable by both humans and language models without
 specialized tooling. Wikidata-compatible property aliases are built in;
 optional import/export adapter conventions are described in Appendix B.
 
-The local format supports multi-file projects. Stack-based composition of
-multiple domain projects is specified in [DCG-001-COMP](02-rfc-composition.md).
+The local format supports multi-file projects and stack-based composition
+of multiple domain projects.
 
 ---
 
@@ -69,8 +68,7 @@ Additional definitions:
   on natural-language similarity rather than coded identifiers.
 - **Label Reference** (`ref_label`): An unresolved entity reference specified
   by the target's human-readable label (and optionally its type) rather than
-  by UID. Resolved to a `ref` during composition
-  ([DCG-001-COMP](02-rfc-composition.md)).
+  by UID. Resolved to a `ref` during composition.
 - **Type**: A type-defining entity (e.g., `dcg:meta:Function`).
 - **Ontology**: The set of declared entity types, properties,
   relations, and aliases available to a graph. Composed from the built-in
@@ -84,9 +82,7 @@ Additional definitions:
 ## 4. Conformance
 
 A conforming implementation MUST satisfy all MUST requirements in this
-specification. Conformance to extensions [DCG-001-COMP](02-rfc-composition.md),
-[DCG-001-PACK](03-rfc-packs.md), and [DCG-001-ADAPT](04-rfc-store-adaptor.md) is
-independent and optional.
+specification.
 
 ---
 
@@ -147,7 +143,6 @@ appear in all capitals, as shown here.
 - [Appendix A: Requirement Summary](#appendix-a-requirement-summary)
 - [Appendix B: Wikidata Alias Mapping (Informative)](#appendix-b-wikidata-alias-mapping-informative)
 - [Appendix C: Design Rationale (Informative)](#appendix-c-design-rationale-informative)
-- [Appendix D: Change Log](#appendix-d-change-log)
 
 ---
 
@@ -429,7 +424,7 @@ R-049. A DCG domain project MUST declare its domain-specific types, properties,
      relations, and aliases in the `ontology` key of `graph_card.json`.
      There is no separate `ontology.yaml` file — `graph_card.json` is the
      single source of truth for a layer's ontology. Projects MAY also
-     reference ontology packs via the `packs` key (see [DCG-001-PACK](03-rfc-packs.md)).
+     reference ontology packs via the `packs` key.
 
 R-050. The `ontology` key in `graph_card.json` MUST use the following sub-keys,
      all optional:
@@ -443,9 +438,7 @@ R-050. The `ontology` key in `graph_card.json` MUST use the following sub-keys,
 R-051. When `to_dict()` serializes graph card state, the ontology MUST be
      included under an `"ontology"` key in `graph_card.json` containing only
      custom (non-built-in) types, properties, and aliases.
-     Built-in declarations MUST NOT be serialized. See
-     [DCG-001-PACK](03-rfc-packs.md) for pack-specific serialization
-     exclusion and `packs` key persistence requirements.
+     Built-in declarations MUST NOT be serialized.
 
 #### 8.5.4 Redirect Format
 
@@ -588,8 +581,8 @@ R-062. All entities and relations stored in a layer's graph data files MUST
     references in graph data files are NOT permitted.
 
 R-063. Cross-layer connections MUST NOT be stored in any layer's graph data
-    files. See [DCG-001-COMP](02-rfc-composition.md) for join rule
-    expression and materialization requirements.
+    files. Cross-layer relationships are materialized at composition time
+    via join rules.
 
 ---
 
@@ -649,8 +642,6 @@ R-074. `purge_retracted()` MUST permanently remove all entities and relations
 R-075. After purge, `load()` MUST NOT resurrect previously retracted data.
 
 R-076. `purge_retracted()` MUST operate on a single domain project at a time.
-    See [DCG-001-COMP](02-rfc-composition.md) for stack-level purge
-    orchestration requirements.
 
 ### 10.3 Entity Redirects
 
@@ -820,7 +811,7 @@ by the data model requirements above.
 | R-048 | 8.5.1 Built-in Ontology | MUST | ontology_builtin declarations available without explicit registration |
 | R-049 | 8.5.2 Per-Project Ontology | MUST | Domain-specific ontology declared in `graph_card.json` ontology key |
 | R-050 | 8.5.2 Per-Project Ontology | MUST | ontology key uses types/properties/aliases sub-keys |
-| R-051 | 8.5.3 Ontology Persistence | MUST | to_dict() serializes only custom declarations; built-in excluded; packs per DCG-001-PACK |
+| R-051 | 8.5.3 Ontology Persistence | MUST | to_dict() serializes only custom declarations; built-in excluded |
 | R-052 | 8.5.4 Redirect Format | MUST | Redirect stored as `"redirected to"` attribute on old entity |
 | R-053 | 9.2 Metadata Manifest | MUST | graph_card.json MUST be at project root; no entity/relation data |
 | R-054 | 9.2 Metadata Manifest | MUST | dcg_project object MUST contain name and version (strict semver) |
@@ -832,7 +823,7 @@ by the data model requirements above.
 | R-060 | 9.3 Graph Data Files | SHOULD | Graph data files SHOULD contain schema_version |
 | R-061 | 9.3 Graph Data Files | MUST | Graph data files MUST NOT contain dcg_project, ontology, or graphs keys |
 | R-062 | 9.4 Intra-Layer Constraint | MUST | All UID refs in a layer MUST be intra-layer only |
-| R-063 | 9.4 Intra-Layer Constraint | MUST | Cross-layer connections MUST NOT be stored in graph data; join rules per DCG-001-COMP |
+| R-063 | 9.4 Intra-Layer Constraint | MUST | Cross-layer connections MUST NOT be stored in graph data; materialized at composition time |
 | R-064 | 10.1 Store Operations | MUST | Implementation MUST provide a graph store satisfying R-065 operations |
 | R-065 | 10.1 Store Operations | MUST | Graph store MUST provide listed logical operations (language-neutral) |
 | R-066 | 10.1 Store Operations | MUST | add_entity() and add_relation() MUST be idempotent |
@@ -845,7 +836,7 @@ by the data model requirements above.
 | R-073 | 10.2 Retraction and Purge | MUST | get_relations() MUST exclude retracted relations |
 | R-074 | 10.2 Retraction and Purge | MUST | purge_retracted() MUST permanently remove retracted data (except R-081 tombstones) |
 | R-075 | 10.2 Retraction and Purge | MUST | After purge, load() MUST NOT resurrect retracted data |
-| R-076 | 10.2 Retraction and Purge | MUST | purge_retracted() MUST operate on single domain project; stack orchestration per DCG-001-COMP |
+| R-076 | 10.2 Retraction and Purge | MUST | purge_retracted() MUST operate on single domain project |
 | R-077 | 10.3 Entity Redirects | MUST | Implementations MUST support entity redirects |
 | R-078 | 10.3 Entity Redirects | MUST | get_entity() MUST follow redirects transparently |
 | R-079 | 10.3 Entity Redirects | MUST | Redirect chains MUST be followed up to impl-defined depth (RECOMMENDED 10); return null if exceeded |
@@ -929,45 +920,3 @@ workflows:
   vocabulary-based join rules (not UID references), a parent project can be
   rebuilt with new UIDs without breaking child project data
 
----
-
-## Appendix D: Change Log
-
-**2026-06-30 — Core protocol relaxation for extension-neutral minimalism**
-
-Relaxed requirements to keep the core protocol minimal and delegate
-extension-specific concerns to the appropriate extension RFCs:
-- R-023: Generalized property alias registry (Wikidata naming moved to Appendix B)
-- R-045: Validation reporting relaxed from MUST to SHOULD; strict mode deferred to DCG-001-COMP
-- R-051: Pack-specific serialization exclusion deferred to DCG-001-PACK
-- R-055: Default graph identified by `"id": "default"` instead of array position
-- R-063: Join-rule mandate moved to DCG-001-COMP; core retains only storage prohibition
-- R-064/R-065: Language-neutral store protocol descriptions (removed Python-specific signatures)
-- R-067/R-079: Redirect depth made implementation-defined (RECOMMENDED 10)
-- R-076: Stack-level purge orchestration deferred to DCG-001-COMP
-- §9.1: JSON canonical format with MAY for alternative text-based formats
-
-**2026-06-30 — §10.5 Entity/Attribute Atomicity + §10.6 Relation Classification**
-
-Added R-084..R-090. Formalizes that entities and their attributes are one
-atomic unit in persistence (§10.5), and that relations are classified as
-derived (reconstructable from entity ref attributes) or explicit (user-asserted
-via `add_relation()`) (§10.6). These clarifications support the adapter
-extension [DCG-001-ADAPT](04-rfc-store-adaptor.md) which depends on entity atomicity
-for enrichment overlay semantics.
-
-**2026-06-26 — DCG-001 initial split**
-
-Split from the monolithic DCG-002 protocol RFC. This document contains:
-- Wire format and data model (§6–§8)
-- Domain project on-disk format (§9)
-- Graph Store Protocol including retraction, purge, redirects, and I/O (§10)
-
-Content moved to companion documents:
-- Stack composition → [DCG-001-COMP](02-rfc-composition.md)
-- Pack system → [DCG-001-PACK](03-rfc-packs.md)
-- Implementation guidance and runtime behavior → DCG-001-IMP (spec)
-
-Requirements renumbered sequentially R-001..R-083. Wikidata structural
-compatibility (old R-4..R-6) moved to Appendix B (informative, no formal
-requirements). Schema version reference updated from "DCG-002" to "DCG-001".

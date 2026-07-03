@@ -93,7 +93,6 @@ appear in all capitals, as shown here.
 - [References](#13-references)
   - [Normative](#normative)
 - [Appendix A: Requirement Summary](#appendix-a-requirement-summary)
-- [Appendix B: Change Log](#appendix-b-change-log)
 
 ---
 
@@ -627,24 +626,3 @@ expressions.
 | R-047 | 7a. Join Matcher Protocol | SHOULD | Registration mechanism for custom matchers SHOULD be provided |
 | R-048 | 7a. Join Matcher Protocol | MUST | `"token_set"` tokenizer MUST lowercase, split on non-alphanumeric, remove stopwords, deduplicate |
 
----
-
-## Appendix B: Change Log
-
-**2026-07-03 — Linguistic joins, matcher protocol, label references**
-
-- R-003a: Added `join_threshold` manifest field
-- R-014a, R-014b: Added `~>` fuzzy join operator and extended rule form
-- R-016: Updated grammar with `join_op` production
-- R-018a, R-019a: Matcher-based materialization and fuzzy audit fields
-- §7a (R-045–R-048): Added Join Matcher Protocol
-- §8a (R-038–R-044): Added Label Reference Resolution
-
-**2026-06-30 — Strict mode definition + stack purge + adapter exemption**
-
-- R-003: Defined strict mode validation thresholds explicitly (previously
-  circular reference with DCG-001)
-- R-033: Narrowed standalone loadability to native layers; adapter-backed
-  layers (DCG-001-ADAPT) are exempt
-- R-037: Added stack-level purge orchestration requirement (moved from
-  DCG-001 R-076)

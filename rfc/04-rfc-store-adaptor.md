@@ -23,7 +23,6 @@
 - [Appendix A: Requirement Summary](#appendix-a-requirement-summary)
 - [Appendix B: Overlay File Example](#appendix-b-overlay-file-example)
 - [Appendix C: Overlay Application Diagram](#appendix-c-overlay-application-diagram)
-- [Appendix D: Change Log](#appendix-d-change-log)
 
 ---
 
@@ -410,14 +409,3 @@ Load sequence:
   +--------------------------------------+
 ```
 
----
-
-## Appendix D: Change Log
-
-**2026-06-30 — DCG-001-ADAPT initial draft**
-
-Initial extension RFC. Defines layer adapter protocol (R-001–R-006), source
-anchor identity for stable overlay matching (R-007–R-009), stack manifest
-integration (R-010–R-014), enrichment overlay format and persistence
-(R-015–R-021), and runtime overlay application with two-phase entity matching
-and UID rewrite persistence (R-022–R-026).

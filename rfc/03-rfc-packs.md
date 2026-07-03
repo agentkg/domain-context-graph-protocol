@@ -83,7 +83,6 @@ appear in all capitals, as shown here.
 - [References](#13-references)
   - [Normative](#normative)
 - [Appendix A: Requirement Summary](#appendix-a-requirement-summary)
-- [Appendix B: Change Log](#appendix-b-change-log)
 
 ---
 
@@ -244,12 +243,3 @@ configuration.
 | R-015 | 11. Stack Composition with Packs | MUST | Each layer's packs loaded independently before stack-level ontology merge |
 | R-016 | 11. Stack Composition with Packs | MUST | Same pack declared in multiple layers loaded once per layer; same merge semantics |
 
----
-
-## Appendix B: Change Log
-
-**2026-06-30 — Pack serialization exclusion + renumbering**
-
-- R-008 (new): Pack declarations MUST NOT be serialized by `to_dict()`;
-  `packs` key MUST be persisted (moved from DCG-001 R-051)
-- R-009–R-016: Renumbered from R-008–R-015 due to R-008 insertion
