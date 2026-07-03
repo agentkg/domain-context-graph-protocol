@@ -60,6 +60,17 @@ Additional definitions:
   index pointing to graph data files. Does NOT contain entities or relations.
 - **Graph Data File**: A JSON file under `graphs/` (e.g., `graphs/default.json`)
   containing the entities and relations for one named graph.
+- **Join Matcher**: An algorithm that computes a similarity score between two
+  property values for join evaluation. Matchers are protocol-extensible —
+  implementations MUST support `"exact"` (string equality) and `"token_set"`
+  (token-overlap Jaccard similarity), and MAY register additional matchers.
+- **Linguistic Join**: A join rule that uses a fuzzy matching algorithm (a
+  join matcher other than `"exact"`) to find cross-layer relationships based
+  on natural-language similarity rather than coded identifiers.
+- **Label Reference** (`ref_label`): An unresolved entity reference specified
+  by the target's human-readable label (and optionally its type) rather than
+  by UID. Resolved to a `ref` during composition
+  ([DCG-001-COMP](02-rfc-composition.md)).
 - **Type**: A type-defining entity (e.g., `dcg:meta:Function`).
 - **Ontology**: The set of declared entity types, properties,
   relations, and aliases available to a graph. Composed from the built-in
@@ -285,6 +296,19 @@ R-029. Implementations MUST preserve unknown typed value keys on round-trip. An
     implementation that encounters an attribute with an unrecognized typed key
     MUST store it as-is and include it in `to_dict()` output. It MUST NOT
     drop, error on, or silently discard unknown types.
+
+R-029a. Implementations MAY support the `"ref_label"` attribute key as a
+    composition-time reference marker. An attribute with `"ref_label"`
+    (string — target entity label) and optional `"ref_type"` (string —
+    target entity type name) declares an unresolved cross-layer reference.
+
+    `ref_label` is NOT a typed value key in the sense of R-026/R-027.
+    It is a composition directive that MUST be resolved to a `"ref"` before
+    the entity is persisted. Graph data files (§9) MUST NOT contain
+    unresolved `ref_label` attributes.
+
+    An attribute MUST NOT contain both `"ref"` and `"ref_label"` — they
+    are mutually exclusive.
 
 ### 7.4 Qualifiers
 
@@ -774,6 +798,7 @@ by the data model requirements above.
 | R-027 | 7.3 Value Types | MUST | Core value types: ref, string, quantity |
 | R-028 | 7.3 Value Types | MAY | Additional value types may be supported |
 | R-029 | 7.3 Value Types | MUST | Unknown typed value keys MUST be preserved on round-trip |
+| R-029a | 7.3. Value Types | MAY | `ref_label` + `ref_type` as composition-time reference marker |
 | R-030 | 7.4 Qualifiers | MUST | Qualifiers follow attribute format (property + typed value key) |
 | R-031 | 7.4 Qualifiers | — | Qualifiers are metadata about the attribute, not the entity |
 | R-032 | 7.5 Retraction | — | Retraction via `"retracted": true` on entity or attribute |

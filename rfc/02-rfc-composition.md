@@ -54,6 +54,14 @@ The following terms are defined for use in this extension. All base terms
 - **Cross-Layer Relation**: A relation produced at stack load time by evaluating
   a join rule. Cross-layer relations are read-only and computed, not stored in
   any layer's graph data files.
+- **Exact Join**: A join rule using the `->` operator that matches entities by
+  exact string equality on a shared property value.
+- **Fuzzy Join**: A join rule using the `~>` operator that matches entities by
+  a configurable similarity algorithm (join matcher). The default fuzzy matcher
+  is `"token_set"` (token-overlap Jaccard similarity).
+- **Join Threshold**: A floating-point value (0.0–1.0) that determines the
+  minimum similarity score required for a fuzzy join to materialize a
+  cross-layer relation.
 
 ---
 
@@ -118,6 +126,11 @@ R-003. The manifest MAY contain:
 
     The manifest MUST NOT contain an `ontology` block. Ontology declarations
     belong in each layer's `graph_card.json`.
+
+R-003a. The manifest MAY contain `join_threshold` (number, 0.0–1.0 — global
+    default threshold for fuzzy join rules; default `0.5`). Only applies to
+    rules using the `~>` operator. Individual join rules MAY override this
+    threshold using the extended rule form (R-014b).
 
 R-004. Each layer entry MUST contain:
     - `name` (string — unique identifier for this composition layer)
@@ -217,6 +230,26 @@ R-014. The join expression MUST use the following syntax:
      rule MUST be restricted to entities in the named layer only. When
      absent, all layers are searched.
 
+R-014a. In addition to the exact-match operator `->`, join expressions MAY use
+     the fuzzy-match operator `~>`:
+
+     ```
+     [<LayerName>.]<SourceType>.<match_property> ~> [<LayerName>.]<TargetType>.<match_property>
+     ```
+
+     The `~>` operator instructs the stack to use a join matcher
+     (default: `"token_set"`) instead of exact string equality.
+
+R-014b. A join rule MAY use an extended object form instead of a plain
+     string value:
+
+     ```yaml
+     - <property_name>:
+         rule: <join_expression>           # REQUIRED
+         threshold: <number>               # OPTIONAL (0.0–1.0)
+         matcher: <string>                 # OPTIONAL ("exact", "token_set", or custom)
+     ```
+
 R-015. The `.` character MUST NOT appear in entity type names, property
      names, or layer names. This guarantees unambiguous parsing of the
      join expression. Disambiguation between layer name and type name
@@ -227,7 +260,8 @@ R-016. The full join rule grammar is:
 
      ```
      join_rule      := property_name ":" SP join_expr
-     join_expr      := type_prop SP "->" SP type_prop
+     join_expr      := type_prop SP join_op SP type_prop
+     join_op        := "->" | "~>"
      type_prop      := [LayerName "."] TypeName "." prop_name
      LayerName      := [a-z][a-z0-9_-]*
      TypeName       := [A-Z][A-Za-z0-9_-]*
@@ -264,6 +298,37 @@ Each rule is parsed into a structured `JoinRule` with fields:
 
 ---
 
+## 7a. Join Matcher Protocol
+
+R-045. Implementations MUST support a pluggable join matcher system.
+     A join matcher is any object that provides:
+     - `score(source_value, target_value) -> number` — returns a similarity
+       score between 0.0 (no match) and 1.0 (exact match).
+     - `threshold -> number` — the minimum score required for a match.
+
+R-046. Implementations MUST provide these built-in matchers:
+     - `"exact"` — returns 1.0 if `source == target`, else 0.0. Threshold
+       is 1.0. This is the matcher used by the `->` operator.
+     - `"token_set"` — tokenizes both values (split on non-alphanumeric,
+       lowercase, remove stopwords), computes Jaccard similarity
+       (`|intersection| / |union|`). Default threshold is 0.5 (or the
+       stack's `join_threshold`). This is the default matcher for `~>`.
+
+R-047. Implementations SHOULD provide a registration mechanism for custom
+     matchers so that users can extend the join system without modifying
+     the core.
+
+R-048. The `"token_set"` tokenizer MUST:
+     - Convert the input to lowercase
+     - Split on runs of non-alphanumeric characters
+     - Remove a standard English stopword set (articles, prepositions,
+       conjunctions: a, an, the, of, to, for, in, on, at, by, is, it,
+       and, or, with, from, as, this, that)
+     - Discard empty tokens
+     - Return a set of unique tokens
+
+---
+
 ## 8. Cross-Layer Join Materialization
 
 After all layers are loaded and ontologies are merged, the stack processes
@@ -282,6 +347,12 @@ R-018. For each join rule, the stack MUST:
         look up matching targets in the index and emit a materialized
         cross-layer relation.
 
+R-018a. For fuzzy join rules (`~>` operator), step 3 of R-018 (build target
+     index) is replaced by pairwise scoring: for each source value, the
+     matcher's `score()` method is invoked against each target value.
+     A relation is emitted for each pair whose score meets or exceeds the
+     matcher's threshold.
+
 R-019. Each materialized cross-layer relation MUST be a JSON object with:
      - `dcg:type` (string — `"relation"`)
      - `uid` (string — deterministic UID computed from source ID, target ID,
@@ -293,6 +364,12 @@ R-019. Each materialized cross-layer relation MUST be a JSON object with:
      - `dcg:cross_layer` (boolean — `true`)
      - `dcg:matched_on` (string — the property value that caused the match,
        e.g., `"CWE-20"`)
+
+R-019a. Materialized cross-layer relations from fuzzy join rules MUST
+     additionally include:
+     - `dcg:match_target` (string — the target property value that matched)
+     - `dcg:match_score` (number — the similarity score, 0.0–1.0, rounded
+       to 3 decimal places)
 
 R-020. Cross-layer relations MUST be read-only. They MUST NOT be stored in any
      layer's graph data files. They are recomputed on every stack load.
@@ -317,6 +394,43 @@ R-022. A source entity with multiple values for `from_prop` (multi-value
   "dcg:matched_on": "CWE-20"
 }
 ```
+
+---
+
+## 8a. Label Reference Resolution
+
+R-038. After all layers are loaded and ontologies merged, but BEFORE join
+     rule validation and materialization, implementations MUST resolve all
+     `ref_label` attributes across the stack.
+
+R-039. Resolution MUST search the entity's own layer and all ancestor
+     layers (per the `extends` DAG), in ancestor-first order.
+
+R-040. Resolution MUST match by case-insensitive label equality. If
+     `ref_type` is specified, candidates MUST also match by type
+     (`instance_of == dcg:meta:<ref_type>`).
+
+R-041. Resolution MUST return the first match found (ancestor-first
+     order — parent concepts take precedence).
+
+R-042. On successful resolution:
+     - The `ref_label` key MUST be replaced with `ref` containing the
+       resolved entity's UID.
+     - The `ref_type` key, if present, MUST be removed.
+     - If the resolved entity is in a different layer than the source
+       entity, a cross-layer relation MUST be materialized with
+       `dcg:cross_layer: true` and `dcg:resolved_from: "<original_label>"`.
+
+R-043. On failed resolution:
+     - In strict mode (`strict: true`): implementations MUST raise an error.
+     - In non-strict mode: implementations SHOULD log a warning. The
+       `ref_label` attribute MUST be preserved as-is (not silently dropped).
+
+R-044. When multiple entities match the same `(label, type)` pair:
+     - In strict mode: implementations MUST raise an error listing all
+       matches (ambiguity is a data quality issue).
+     - In non-strict mode: implementations MUST use the first match
+       (ancestor-first) and SHOULD log a warning listing all matches.
 
 ---
 
@@ -462,6 +576,7 @@ expressions.
 | R-001 | 5. Stack Manifest Format | MUST | Stack defined by YAML manifest file (`dcg-stack.yml`) |
 | R-002 | 5. Stack Manifest Format | MUST | Manifest contains `stack` and `layers` fields |
 | R-003 | 5. Stack Manifest Format | MAY/MUST | Manifest MAY contain `strict` (defines validation thresholds) and `joins`; MUST NOT contain `ontology` block |
+| R-003a | 5. Stack Manifest Format | MAY | Manifest MAY contain `join_threshold` (global fuzzy join threshold; default 0.5) |
 | R-004 | 5. Stack Manifest Format | MUST | Each layer entry contains `name` and `source` |
 | R-005 | 5. Stack Manifest Format | MAY | Each layer entry MAY contain `extends` array |
 | R-006 | 5. Stack Manifest Format | MUST | Layer names MUST be unique within a manifest |
@@ -473,11 +588,15 @@ expressions.
 | R-012 | 6. DAG Validation and Load Order | MUST | Join rule validation: all join rule types/properties MUST exist in merged ontology |
 | R-013 | 7. Join Rule Syntax | MUST | Join rule MUST be a single-key YAML mapping |
 | R-014 | 7. Join Rule Syntax | MUST | Join expression MUST use `[Layer.]Type.prop -> [Layer.]Type.prop` syntax |
+| R-014a | 7. Join Rule Syntax | MAY | Join expressions MAY use `~>` fuzzy-match operator (default matcher: `"token_set"`) |
+| R-014b | 7. Join Rule Syntax | MAY | Join rules MAY use extended object form with `rule`, `threshold`, `matcher` fields |
 | R-015 | 7. Join Rule Syntax | MUST | `.` MUST NOT appear in type, property, or layer names |
-| R-016 | 7. Join Rule Syntax | MUST | Full grammar MUST be enforced; non-matching rules rejected at parse time |
+| R-016 | 7. Join Rule Syntax | MUST | Full grammar MUST be enforced (includes `join_op := "->" \| "~>"`); non-matching rules rejected |
 | R-017 | 7. Join Rule Syntax | MUST | Layer-prefixed join rules MUST reference a declared layer |
 | R-018 | 8. Cross-Layer Join Materialization | MUST | Join evaluation: collect candidates, build index, emit cross-layer relations |
+| R-018a | 8. Cross-Layer Join Materialization | MUST | Fuzzy join (`~>`) replaces index lookup with pairwise scoring; emits relation per pair meeting threshold |
 | R-019 | 8. Cross-Layer Join Materialization | MUST | Materialized relations MUST have specified JSON fields including `dcg:cross_layer: true` |
+| R-019a | 8. Cross-Layer Join Materialization | MUST | Fuzzy join relations MUST additionally include `dcg:match_target` and `dcg:match_score` |
 | R-020 | 8. Cross-Layer Join Materialization | MUST | Cross-layer relations MUST be read-only; MUST NOT be stored in layer data files |
 | R-021 | 8. Cross-Layer Join Materialization | MUST | Cross-layer relations MUST be stored separately from intra-layer relations |
 | R-022 | 8. Cross-Layer Join Materialization | MUST | Multi-value `from_prop` MUST produce one relation per matching pair |
@@ -496,10 +615,30 @@ expressions.
 | R-035 | 11. Composition Guarantees | MUST | `save()` MUST operate on active layer only |
 | R-036 | 11. Composition Guarantees | MUST | Parent layer improvements MUST be automatically visible on next stack load |
 | R-037 | 11. Composition Guarantees | MUST | Stack-level purge MUST target each layer explicitly and independently |
+| R-038 | 8a. Label Reference Resolution | MUST | `ref_label` attributes MUST be resolved after all layers loaded, before join materialization |
+| R-039 | 8a. Label Reference Resolution | MUST | Resolution MUST search own layer and ancestor layers (ancestor-first order) |
+| R-040 | 8a. Label Reference Resolution | MUST | Resolution MUST match by case-insensitive label; if `ref_type` present, MUST also match by type |
+| R-041 | 8a. Label Reference Resolution | MUST | Resolution MUST return first match found (ancestor-first) |
+| R-042 | 8a. Label Reference Resolution | MUST | On success: replace `ref_label` with `ref`; remove `ref_type`; materialize cross-layer relation if cross-layer |
+| R-043 | 8a. Label Reference Resolution | MUST/SHOULD | On failure: strict mode MUST raise error; non-strict SHOULD log warning, preserve `ref_label` |
+| R-044 | 8a. Label Reference Resolution | MUST/SHOULD | Ambiguous match: strict mode MUST raise error; non-strict MUST use first match and SHOULD log warning |
+| R-045 | 7a. Join Matcher Protocol | MUST | Implementations MUST support pluggable join matcher system with `score()` and `threshold` |
+| R-046 | 7a. Join Matcher Protocol | MUST | Built-in matchers `"exact"` and `"token_set"` MUST be provided |
+| R-047 | 7a. Join Matcher Protocol | SHOULD | Registration mechanism for custom matchers SHOULD be provided |
+| R-048 | 7a. Join Matcher Protocol | MUST | `"token_set"` tokenizer MUST lowercase, split on non-alphanumeric, remove stopwords, deduplicate |
 
 ---
 
 ## Appendix B: Change Log
+
+**2026-07-03 — Linguistic joins, matcher protocol, label references**
+
+- R-003a: Added `join_threshold` manifest field
+- R-014a, R-014b: Added `~>` fuzzy join operator and extended rule form
+- R-016: Updated grammar with `join_op` production
+- R-018a, R-019a: Matcher-based materialization and fuzzy audit fields
+- §7a (R-045–R-048): Added Join Matcher Protocol
+- §8a (R-038–R-044): Added Label Reference Resolution
 
 **2026-06-30 — Strict mode definition + stack purge + adapter exemption**
 
