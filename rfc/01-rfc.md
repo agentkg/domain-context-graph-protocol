@@ -76,6 +76,11 @@ Additional definitions:
 - **`ontology_builtin`**: The always-loaded base ontology containing RFC-mandatory
   entity types (Domain, Type) and cross-domain general vocabulary with Wikidata
   mappings. Not an opt-in pack; defined in this RFC.
+- **Storage Backend**: A pluggable component that provides raw entity and
+  relation storage primitives (get, set, delete, iterate, count) used
+  internally by a graph store. The storage backend is opaque to graph store
+  consumers — they interact with the graph store, not the backend directly.
+  The default storage backend is an in-memory implementation.
 
 ---
 
@@ -136,6 +141,7 @@ appear in all capitals, as shown here.
   - [I/O Operations](#104-io-operations)
   - [Entity and Attribute Atomicity](#105-entity-and-attribute-atomicity)
   - [Relation Classification](#106-relation-classification)
+  - [Storage Backend](#107-storage-backend)
 - [Security Considerations](#11-security-considerations)
 - [References](#12-references)
   - [Normative](#normative)
@@ -604,6 +610,16 @@ R-065. The graph store MUST provide at minimum these operations (names are
       any combination of source, target, and property filters
     - **query**(instance_of?, part_of?) — query entities by type and/or
       domain membership
+    - **entity_count**() — return total number of entity records
+      (including retracted)
+    - **relation_count**() — return total number of relation records
+      (including retracted)
+    - **iter_entities**() — iterate all entity records as (uid, entity)
+      pairs (including retracted)
+    - **iter_relations**() — iterate all relation records as
+      (uid, relation) pairs (including retracted)
+    - **has_entity**(uid) — return whether an entity record exists
+      (including tombstones)
     - **to_dict**() — serialize graph card state to an in-memory structure
     - **load**(path) — deserialize a domain project from disk
     - **to_json**(path) — serialize and persist a domain project to disk
@@ -724,6 +740,20 @@ R-090. Implementations MAY store additional index structures (e.g.,
     data to optimize queries. Such structures are supplementary and MUST
     be reconstructable from entity data.
 
+### 10.7 Storage Backend
+
+A conforming graph store implementation MAY delegate raw entity and
+relation storage to a pluggable storage backend. The storage backend
+protocol is specified in [DCG-001-STORE](05-rfc-storage-backend.md).
+
+R-091. When a storage backend is used, all protocol-level logic
+    (validation, ontology, retraction semantics, redirect following,
+    ref materialization) MUST remain in the graph store. The graph
+    store MUST default to an in-memory backend when no backend is
+    explicitly provided. The storage backend MUST be transparent —
+    the graph store's public operations MUST behave identically
+    regardless of which backend is in use.
+
 ---
 
 ## 11. Security Considerations
@@ -825,7 +855,7 @@ by the data model requirements above.
 | R-062 | 9.4 Intra-Layer Constraint | MUST | All UID refs in a layer MUST be intra-layer only |
 | R-063 | 9.4 Intra-Layer Constraint | MUST | Cross-layer connections MUST NOT be stored in graph data; materialized at composition time |
 | R-064 | 10.1 Store Operations | MUST | Implementation MUST provide a graph store satisfying R-065 operations |
-| R-065 | 10.1 Store Operations | MUST | Graph store MUST provide listed logical operations (language-neutral) |
+| R-065 | 10.1 Store Operations | MUST | Graph store MUST provide listed logical operations including accessor methods (language-neutral) |
 | R-066 | 10.1 Store Operations | MUST | add_entity() and add_relation() MUST be idempotent |
 | R-067 | 10.1 Store Operations | MUST | get_entity() MUST follow redirects up to impl-defined depth (RECOMMENDED 10) |
 | R-068 | 10.1 Store Operations | MUST | get_relations() MUST resolve property aliases before matching |
@@ -851,6 +881,7 @@ by the data model requirements above.
 | R-088 | 10.6 Relation Classification | MUST | Explicit relations MUST survive round-trip (load → save → load) |
 | R-089 | 10.6 Relation Classification | MAY/MUST | Derived relations MAY be stored; MUST be reconstructable if absent on load |
 | R-090 | 10.6 Relation Classification | MAY/MUST | Additional index structures MAY be stored; MUST be reconstructable from entity data |
+| R-091 | 10.7 Storage Backend | MAY/MUST | Graph store MAY delegate to pluggable backend; protocol logic MUST stay in graph store; MUST default to in-memory; MUST be transparent |
 
 ---
 
